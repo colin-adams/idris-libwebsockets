@@ -1,0 +1,9 @@
+package test_server
+
+modules = Main
+
+executable = test_server
+
+main = Test_server
+
+pkgs = libwebsockets,contrib,posix,argparse

@@ -2,5 +2,6 @@
 *.o
 *#
 *~
+example/test_server/test_server
 
 

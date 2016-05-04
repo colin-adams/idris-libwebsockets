@@ -1,0 +1,12 @@
+package libwebsockets
+
+sourcedir = src
+
+modules = WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon
+
+objs = lws.h
+
+--libs = websockets
+
+pkgs = contrib
+--,posix?
