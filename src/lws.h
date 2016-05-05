@@ -29,4 +29,7 @@ void set_log_level_syslog (int level)
   lws_set_log_level (level, lwsl_emit_syslog);
 }
 
-
+void * pm_deflate ()
+{
+  return (void *) lws_extension_callback_pm_deflate;
+}

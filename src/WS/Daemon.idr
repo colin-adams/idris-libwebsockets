@@ -1,7 +1,7 @@
 ||| Running as a daemon
 module Daemon
 
-import CFFI
+%default total
 
 %include C "lws.h"
 

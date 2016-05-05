@@ -23,11 +23,11 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 ||| rx_buffer_size - if you want atomic frames delivered to the callback, you should set this to the size of the biggest legal frame that you support. If the frame size is exceeded, there is no error, but the buffer will spill to the user callback when full, which you can detect by using lws_remaining_packet_payload. Notice that you just talk about frame size here, the LWS_PRE and post-padding are automatically also allocated on top.
 ||| id - ignored by lws, but useful to contain user information bound to the selected protocol. For example if this protocol was called "myprotocol-v2", you might set id to 2, and the user code that acts differently according to the version can do so by switch (wsi->protocol->id), user code might use some bits as capability flags based on selected protocol version, etc.
 ||| user - User provided context data at the protocol level. Accessible via lws_get_protocol(wsi)->user This should not be confused with wsi->user, it is not the same. The library completely ignores any value in here.
-export
 protocols_structure : Composite
 protocols_structure = STRUCT [PTR, PTR, I64, I64, I32, PTR]
 
 -- Field indices into protocols_structure
+
 name_field : Ptr -> CPtr
 name_field prots = (protocols_structure#0) prots
 
@@ -150,13 +150,14 @@ set_protocol_user_data : (user : Ptr) -> (protocol : Ptr) -> IO ()
 set_protocol_user_data user protocol =
   poke PTR (user_field protocol) user
 
-||| Allocate the protocols array
+||| Allocate the protocols array for @count + 1 structures
+||| (the additional 1 is the null terminator)
 |||
 ||| @count - how many protocols we shall support (including http)
 export
 allocate_protocols_array : (count : Int) -> IO Ptr
 allocate_protocols_array count = do
-  cpt <- alloc (ARRAY count protocols_structure)
+  cpt <- alloc (ARRAY (count + 1) protocols_structure)
   pure $ toPtr cpt
 
 ||| Fill in pre-allocated protocols array with a protocol

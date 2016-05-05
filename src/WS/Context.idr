@@ -3,7 +3,12 @@ module Context
 
 import CFFI
 
+%access export
+
 %include C "lws.h"
+
+string_to_c : String -> IO Ptr
+string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 
 ||| Format of the server's connection information
 |||
@@ -34,35 +39,170 @@ import CFFI
 ||| fd_limit_per_thread - nonzero means restrict each service thread to this any fds, 0 means the default which is divide the process fd limit by the number of threads.
 ||| timeout_secs - various processes involving network roundtrips in the library are protected from hanging forever by timeouts.  If nonzero, this member lets you set the timeout used in seconds. Otherwise a default timeout is used.
 ||| 8 unused pointers follow
+private
 connection_information_struct : Composite
 connection_information_struct = STRUCT [I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I32, I32, PTR, I32, I32, I32, PTR, I16, I16, I32, I32, I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR]
 
 ||| Access to the server's connection information
-export
 connection_information : IO Ptr
 connection_information = foreign FFI_C "&connection_information" (IO Ptr)
 
 -- Field indices into connection_information_struct
-export
-port_field : Nat
-port_field = 0
+port_field : Ptr -> CPtr
+port_field info = (connection_information_struct#0) info
+
+interface_field : Ptr -> CPtr
+interface_field info = (connection_information_struct#1) info
+
+extensions_field : Ptr -> CPtr
+extensions_field info = (connection_information_struct#3) info
+
+ssl_cert_field : Ptr -> CPtr
+ssl_cert_field info = (connection_information_struct#5) info
+
+ssl_key_field : Ptr -> CPtr
+ssl_key_field info = (connection_information_struct#6) info
+
+gid_field : Ptr -> CPtr
+gid_field info = (connection_information_struct#11) info
+
+uid_field : Ptr -> CPtr
+uid_field info = (connection_information_struct#12) info
+
+options_field : Ptr -> CPtr
+options_field info = (connection_information_struct#13) info
+
+max_http_header_pool_field : Ptr -> CPtr
+max_http_header_pool_field info = (connection_information_struct#20) info
 
 ||| Zero the connection information
 |||
 ||| Call prior to create_context, or any calls to connection_information
-export
 clear_connection_information : IO ()
 clear_connection_information = foreign FFI_C "clear_connection_information" (IO ())
+
+||| Set the maximum size of the HTTP header pool
+|||
+||| @info - Result of call to connection_information
+||| @size - size to be set
+set_max_http_header_pool : (info : Ptr) -> (size : Bits16) -> IO ()
+set_max_http_header_pool info size = do
+  poke I16 (max_http_header_pool_field info) size
 
 ||| Set the port on which to listen
 |||
 ||| @info - Result of call to connection_information
 ||| @port - The port to listen on.
-export
 set_port : (info : Ptr) -> (port : Bits32) -> IO ()
 set_port info port = do
-  port_fld <- pure $ (connection_information_struct#port_field) info
-  poke I32 info port
+  poke I32 (port_field info) port
+
+||| Set the group id under which to run
+|||
+||| @info - Result of call to connection_information
+||| @gid - The gid to listen on.
+set_gid : (info : Ptr) -> (gid : Bits32) -> IO ()
+set_gid info gid = do
+  poke I32 (gid_field info) gid
+
+||| Set the user id under which to run
+|||
+||| @info - Result of call to connection_information
+||| @uid - The uid to listen on.
+set_uid : (info : Ptr) -> (uid : Bits32) -> IO ()
+set_uid info uid = do
+  poke I32 (uid_field info) uid
+ 
+||| Set the SSL certificate file-path
+|||
+||| @info - Result of call to connection_information
+||| @cert - file-path to the certicate
+set_ssl_certificate_path : (info : Ptr) -> (cert : String) -> IO ()
+set_ssl_certificate_path info cert = do
+  str <- string_to_c cert
+  poke PTR (ssl_cert_field info) str
+ 
+||| Set the SSL private-key file-path
+|||
+||| @info - Result of call to connection_information
+||| @key - file path to the key
+set_ssl_key_path : (info : Ptr) -> (key : String) -> IO ()
+set_ssl_key_path info key = do
+  str <- string_to_c key
+  poke PTR (ssl_key_field info) str
+
+||| Set the only interface on which to listen
+|||
+||| @info - Result of call to connection_information
+||| @iface - The sole interface to listen on.
+set_interface : (info : Ptr) -> (iface : String) -> IO ()
+set_interface info iface = do
+  str <- string_to_c iface
+  poke PTR (interface_field info) str
+
+||| Set extensions in use
+|||
+||| @info - Result of call to connection_information
+||| @exts - The extensions to use
+set_extensions : (info : Ptr) -> (exts : Ptr) -> IO ()
+set_extensions info exts = do
+  poke PTR (extensions_field info) exts
+
+-- server options
+
+LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT : Bits32
+LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT = 4098
+
+LWS_SERVER_OPTION_SKIP_SERVER_CANONICAL_NAME : Bits32
+LWS_SERVER_OPTION_SKIP_SERVER_CANONICAL_NAME = 4
+
+LWS_SERVER_OPTION_ALLOW_NON_SSL_ON_SSL_PORT : Bits32
+LWS_SERVER_OPTION_ALLOW_NON_SSL_ON_SSL_PORT = 4104
+
+LWS_SERVER_OPTION_LIBEV : Bits32
+LWS_SERVER_OPTION_LIBEV = 16
+
+LWS_SERVER_OPTION_DISABLE_IPV6 : Bits32
+LWS_SERVER_OPTION_DISABLE_IPV6 = 32
+
+LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS : Bits32
+LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS = 64
+
+LWS_SERVER_OPTION_PEER_CERT_NOT_REQUIRED : Bits32
+LWS_SERVER_OPTION_PEER_CERT_NOT_REQUIRED = 128
+
+LWS_SERVER_OPTION_VALIDATE_UTF8 : Bits32
+LWS_SERVER_OPTION_VALIDATE_UTF8 = 256
+
+LWS_SERVER_OPTION_SSL_ECDH : Bits32
+LWS_SERVER_OPTION_SSL_ECDH = 4608
+
+LWS_SERVER_OPTION_LIBUV: Bits32
+LWS_SERVER_OPTION_LIBUV = 1024
+
+LWS_SERVER_OPTION_REDIRECT_HTTP_TO_HTTPS : Bits32
+LWS_SERVER_OPTION_REDIRECT_HTTP_TO_HTTPS = 6152
+
+LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT : Bits32
+LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT = 4096
+
+LWS_SERVER_OPTION_EXPLICIT_VHOST : Bits32
+LWS_SERVER_OPTION_EXPLICIT_VHOST = 8192
+
+LWS_SERVER_OPTION_UNIX_SOC : Bits32
+LWS_SERVER_OPTION_UNIX_SOC = 16384
+
+LWS_SERVER_OPTION_STS : Bits32
+LWS_SERVER_OPTION_STS = 32768
+
+--LWS_SERVER_OPTION_SKIP_SERVER_CANONICAL_NAME
+||| Set the connection options
+|||
+||| @info    - Result of call to connection_information
+||| @options - Options to be set
+set_options : (info : Ptr) -> (options : Bits32) -> IO ()
+set_options info options = do
+  poke I32 (port_field info) options
 
 ||| Create the websocket handler
 ||| This function creates the listening socket (if serving) and takes care of all initialization in one step.
@@ -73,6 +213,5 @@ set_port info port = do
 ||| This allows the same server to provide files like scripts and favicon / images or whatever over http and dynamic data over websockets all in one place; they're all handled in the user callback.
 |||
 ||| @context_creation_info - parameters needed to create the context
-export
 create_context : (context_creation_info : Ptr) -> IO Ptr
 create_context info = foreign FFI_C "lws_create_context" (Ptr -> IO Ptr) info

@@ -2,7 +2,7 @@ package libwebsockets
 
 sourcedir = src
 
-modules = WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon
+modules = WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon, WS.Extension
 
 objs = lws.h
 
