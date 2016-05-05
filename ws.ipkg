@@ -6,7 +6,6 @@ modules = WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon
 
 objs = lws.h
 
---libs = websockets
+libs = websockets
 
-pkgs = contrib
---,posix?
+pkgs = contrib, posix

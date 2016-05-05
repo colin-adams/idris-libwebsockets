@@ -2,8 +2,6 @@
 module Main
 
 import WS.Context
-import WS.Handler
-import WS.Protocol
 import WS.Logging
 import WS.Daemon
 import System.Posix.Syslog
@@ -14,8 +12,7 @@ import System
 
 %default total
 
-%include C "test_server.h"
-%link C "/usr/lib64/libwebsockets.so"
+%link C "/usr/local/lib/libwebsockets.so"
 
 record Options where
   constructor Make_options
@@ -115,82 +112,12 @@ convert_options (KeyValue k v) o =
                       Just n  => Just $ record {gid = Just n} o
                       Nothing => Nothing
 
-partial      
-http_handler : Callback_handler
-http_handler p n p1 p2 b = unsafePerformIO $ do
-  set_port null 7681
-  pure OK -- TODO
-
-http_session_data_size : Bits64
-http_session_data_size = 0 -- TODO
-
-partial
-dumb_increment_handler : Callback_handler
-dumb_increment_handler p n p1 p2 b = unsafePerformIO $ do
-  set_port null 7681
-  pure OK -- TODO
-
-dumb_increment_session_data_size : Bits64
-dumb_increment_session_data_size = 0 -- TODO
-
-dumb_increment_rx_buffer_size : Bits64
-dumb_increment_rx_buffer_size = 10 -- TODO move to module
-
-partial
-lws_mirror_protocol_handler : Callback_handler
-lws_mirror_protocol_handler p n p1 p2 b = unsafePerformIO $ do
-  set_port null 7681
-  pure OK -- TODO
-
-lws_mirror_protocol_session_data_size : Bits64
-lws_mirror_protocol_session_data_size = 0 -- TODO
-
-lws_mirror_protocol_rx_buffer_size : Bits64
-lws_mirror_protocol_rx_buffer_size = 128 -- TODO move to module
-
-partial
-lws_echogen_handler : Callback_handler
-lws_echogen_handler p n p1 p2 b = unsafePerformIO $ do
-  set_port null 7681
-  pure OK -- TODO
-
-lws_echogen_session_data_size : Bits64
-lws_echogen_session_data_size = 0 -- TODO
-
-lws_echogen_rx_buffer_size : Bits64
-lws_echogen_rx_buffer_size = 128 -- TODO move to module
-
-partial
-lws_status_handler : Callback_handler
-lws_status_handler p n p1 p2 b = unsafePerformIO $ do
-  set_port null 7681
-  pure OK -- TODO
-
-lws_status_session_data_size : Bits64
-lws_status_session_data_size = 0 -- TODO
-
-lws_status_rx_buffer_size : Bits64
-lws_status_rx_buffer_size = 128 -- TODO move to module
-
-partial
-http_handler_wrapper : IO Ptr
-http_handler_wrapper = foreign FFI_C "%wrapper" ((CFnPtr Callback_handler) -> IO Ptr) (MkCFnPtr http_handler)
-
-partial
-dumb_increment_handler_wrapper : IO Ptr
-dumb_increment_handler_wrapper = foreign FFI_C "%wrapper" ((CFnPtr Callback_handler) -> IO Ptr) (MkCFnPtr dumb_increment_handler)
-
-partial
-lws_mirror_protocol_handler_wrapper : IO Ptr
-lws_mirror_protocol_handler_wrapper = foreign FFI_C "%wrapper" ((CFnPtr Callback_handler) -> IO Ptr) (MkCFnPtr lws_mirror_protocol_handler)
-
-partial
-lws_echogen_handler_wrapper : IO Ptr
-lws_echogen_handler_wrapper = foreign FFI_C "%wrapper" ((CFnPtr Callback_handler) -> IO Ptr) (MkCFnPtr lws_echogen_handler)
-
-partial
-lws_status_handler_wrapper : IO Ptr
-lws_status_handler_wrapper = foreign FFI_C "%wrapper" ((CFnPtr Callback_handler) -> IO Ptr) (MkCFnPtr lws_status_handler)
+-- TODO signal handler
+-- TODO extensions
+-- TODO mounts
+-- TODO plugin protocols
+-- TODO signal cb
+-- TODO plugin directories
 
 logging_options : Options -> Int
 logging_options opts = 
@@ -220,19 +147,12 @@ setup_server opts = do
   clear_connection_information
   conn_info <- connection_information
   set_port conn_info $ prim__zextInt_B32 $ fromMaybe 7681 (port opts)
-  protocols <- allocate_protocols_array 6 -- the last one will be all zeros - a terminator
-  add_protocol_handler protocols 0 "http-only" http_handler_wrapper http_session_data_size 0 0 null
-  add_protocol_handler protocols 1 "dumb-increment-protocol" dumb_increment_handler_wrapper dumb_increment_session_data_size dumb_increment_rx_buffer_size 0 null
-  add_protocol_handler protocols 2 "lws-mirror-protocol" lws_mirror_protocol_handler_wrapper lws_mirror_protocol_session_data_size lws_mirror_protocol_rx_buffer_size 0 null
-  add_protocol_handler protocols 3 "lws-echogen" lws_echogen_handler_wrapper lws_echogen_session_data_size lws_echogen_rx_buffer_size 0 null
-  add_protocol_handler protocols 4 "lws-status" lws_status_handler_wrapper lws_status_session_data_size lws_status_rx_buffer_size 0 null
   maybe_daemonize opts
   open_log "lwsts" (logging_options opts) LOG_DAEMON
   set_log_level_syslog (fromMaybe 7 (debug opts))
   lwsl_notice "libwebsockets test server ported to Idris - license LGPL2.1+SLE\n"
   lwsl_notice "Original C code (C) Copyright 2010-2016 Andy Green <andy@warmcat.com>\n"
   close_log
-  free protocols
  -- TODO poll
  
 partial

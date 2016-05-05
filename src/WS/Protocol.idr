@@ -1,4 +1,5 @@
 ||| Protocols and handlers supported by the server
+||| This is not needed when using the libwebsockets 2.0 plugins, as the test_server example now does.
 module Protocol
 
 import WS.Handler
