@@ -29,9 +29,9 @@ void set_log_level_syslog (int level)
   lws_set_log_level (level, lwsl_emit_syslog);
 }
 
-void * pm_deflate ()
+lws_extension_callback_function * pm_deflate ()
 {
-  return (void *) lws_extension_callback_pm_deflate;
+  return &lws_extension_callback_pm_deflate;
 }
 
 void * uv_user_data (uv_signal_t *watcher)

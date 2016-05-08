@@ -227,9 +227,9 @@ check_ssl info opts = do
 partial
 add_extensions : (conn_info : Ptr) -> IO Ptr
 add_extensions conn_info = do
-  exts <- allocate_extensions_array 3
-  add_extension exts 0 "permessage-deflate" lws_extension_callback_deflate_pm "permessage-deflate"
-  add_extension exts 1 "deflate-frame" lws_extension_callback_deflate_pm "deflate_frame"
+  exts <- allocate_extensions_array 2
+  add_extension exts 3 0 "permessage-deflate" lws_extension_callback_deflate_pm "permessage-deflate"
+  add_extension exts 3 1 "deflate-frame" lws_extension_callback_deflate_pm "deflate_frame"
   pure exts
 
 ||| Cancel servicing of pending websocket activity when Ctrl-C is pressed
@@ -313,8 +313,8 @@ setup_server opts = do
   set_mounts conn_info !(allocate_filesystem_mount null "/" local_resource_path "test.html")
   set_pvo conn_info !pvo
   set_max_http_header_pool conn_info 16
-  --exts <-add_extensions conn_info
-  --set_extensions conn_info exts
+  exts <-add_extensions conn_info
+  set_extensions conn_info exts
   context <- create_context conn_info
   if context == null then do
     lwsl_err "libwebsocket init failed\n"
@@ -329,7 +329,7 @@ setup_server opts = do
       lwsl_err "lws_uv_initloop failed\n"
     lws_context_destroy context
     lwsl_notice "libwebsockets-test-server exited cleanly\n"
-    --free exts
+    free exts
     close_log
     exit 0
 

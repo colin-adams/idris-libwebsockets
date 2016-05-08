@@ -1,6 +1,7 @@
 ||| Extensions to libwebsockets
 module Extension
 
+import Data.Fin
 import CFFI
 
 %include C "lws.h"
@@ -16,6 +17,9 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 ||| client offer - String containing exts and options client offers
 extension_structure : Composite
 extension_structure = STRUCT [PTR, PTR, PTR]
+
+extensions_array : Int -> Composite
+extensions_array n = ARRAY n extension_structure
 
 -- Field indices into extension_structure
 
@@ -47,15 +51,16 @@ lws_extension_callback_deflate_pm = foreign FFI_C "pm_deflate" (IO Ptr)
 ||| Fill in pre-allocated extensions array with an Idris-written extension
 |||
 ||| @array        - Extensions array to be filled
-||| @slot         - Extension number to fill - this had better be in range
+||| @size         - size of @array
+||| @slot         - Extension number to fill
 ||| @name         - Formal name of extension
 ||| @callback     - Wrapper around a service callback which implement the extension
 ||| @client_offer - String containing extensions and options client offers
 export
-add_extension : (array : Ptr) -> (slot : Nat) -> (name : String) -> (callback : IO Ptr) ->
+add_extension : (array : Ptr) -> (size : Nat) -> (slot : Fin size) -> (name : String) -> (callback : IO Ptr) ->
   (client_offer : String) -> IO ()
-add_extension array slot name callback offer = do
-  struct <- pure $ (extension_structure#slot) array
+add_extension array size slot name callback offer = do
+  struct <- pure $ ((extensions_array $ toIntNat size)#(finToNat slot)) array
   str <- string_to_c name
   poke PTR (name_field struct) str
   poke PTR (callback_field struct) !callback

@@ -2,6 +2,7 @@
 ||| This is not needed when using the libwebsockets 2.0 plugins, as the test_server example now does.
 module Protocol
 
+import Data.Fin
 import WS.Handler
 import CFFI
 
@@ -26,7 +27,8 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 protocols_structure : Composite
 protocols_structure = STRUCT [PTR, PTR, I64, I64, I32, PTR]
 
--- Field indices into protocols_structure
+protocols_array : Int -> Composite
+protocols_array n = ARRAY n protocols_structure
 
 name_field : Ptr -> CPtr
 name_field prots = (protocols_structure#0) prots
@@ -163,7 +165,8 @@ allocate_protocols_array count = do
 ||| Fill in pre-allocated protocols array with a protocol
 |||
 ||| @array       - protocols array to be filled
-||| @slot        - Protocol number to fill - this had better be in range
+||| @size        - size of @array
+||| @slot        - Protocol number to fill
 ||| @name        - name of protocol to be handled
 ||| @handler     - Wrapper around a Callback_handler to handle protocol
 ||| @data_size   - per-session data size
@@ -171,10 +174,10 @@ allocate_protocols_array count = do
 ||| @id          - protocol-specific identifier
 ||| @user        - user-provided content data
 export
-add_protocol_handler : (array : Ptr) -> (slot : Nat) -> (name : String) -> (handler : IO Ptr) ->
+add_protocol_handler : (array : Ptr) -> (size : Nat) -> (slot : Fin size) -> (name : String) -> (handler : IO Ptr) ->
   (data_size : Bits64) ->  (buffer_size : Bits64) -> (id : Bits32) -> (user : Ptr) -> IO ()
-add_protocol_handler array slot name handler data_size buffer_size id user = do
-  struct <- pure $ (protocols_structure#slot) array
+add_protocol_handler array size slot name handler data_size buffer_size id user = do
+  struct <- pure $ ((protocols_array $ toIntNat size)#(finToNat slot)) array
   str <- string_to_c name
   poke PTR (name_field struct) str
   poke PTR (callback_field struct) !handler
