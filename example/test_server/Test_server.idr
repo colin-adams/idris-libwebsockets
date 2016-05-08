@@ -5,7 +5,12 @@ import WS.Context
 import WS.Logging
 import WS.Daemon
 import WS.Extension
+import WS.Service
+import WS.Mount
+import WS.Vhost_options
+import WS.Uv
 import System.Posix.Syslog
+import System.Posix.Signal
 import ArgParse
 import Data.String
 import CFFI
@@ -133,7 +138,7 @@ chosen_resource_path opts = case resource_path opts of
 ||| @options - the command-line arguments
 certificate_path : (options : Options) -> String
 certificate_path opts = case ssl_cert opts of
-  Nothing => ""
+  Nothing => local_resource_path ++ "/libwebsockets-test-server.pem"
   Just c  => c
 
 ||| Path to SSL key
@@ -141,14 +146,11 @@ certificate_path opts = case ssl_cert opts of
 ||| @options - the command-line arguments
 key_path : (options : Options) -> String
 key_path opts = case ssl_key opts of
-  Nothing => ""
+  Nothing => local_resource_path ++ "/libwebsockets-test-server.key.pem"
   Just c  => c
 
--- TODO signal handler
--- TODO extensions
 -- TODO mounts
 -- TODO plugin protocols
--- TODO signal cb
 -- TODO plugin directories
 
 logging_options : Options -> Int
@@ -207,9 +209,9 @@ check_ssl : (conn_info : Ptr) -> (options : Options) -> IO ()
 check_ssl info opts = do
   let ch_r_p = chosen_resource_path opts
   let kp = key_path opts
-  let kp_len = toIntegerNat $ length kp
+  let kp_len = 1024
   let cp = certificate_path opts
-  let cp_len = toIntegerNat $ length cp
+  let cp_len = 1024
   if (toIntegerNat $ length (ch_r_p)) > (cp_len - 32) || (toIntegerNat $ length (ch_r_p)) > (kp_len - 32) then do
     lwsl_err "resource path too long"
     exit (-1)
@@ -218,7 +220,9 @@ check_ssl info opts = do
     let kp2 = if kp_len == 0 then ch_r_p ++ kp else kp    
     set_ssl_certificate_path info cp2
     set_ssl_key_path info kp2
-  
+    case ssl_ca opts of
+      Nothing => pure ()
+      Just ca => set_ssl_ca_filepath info ca
 ||| Allocate and add the extension services
 partial
 add_extensions : (conn_info : Ptr) -> IO Ptr
@@ -227,7 +231,59 @@ add_extensions conn_info = do
   add_extension exts 0 "permessage-deflate" lws_extension_callback_deflate_pm "permessage-deflate"
   add_extension exts 1 "deflate-frame" lws_extension_callback_deflate_pm "deflate_frame"
   pure exts
+
+||| Cancel servicing of pending websocket activity when Ctrl-C is pressed
+interrupt_handler : Ptr -> Signal_handler
+interrupt_handler context sig_num = unsafePerformIO $ do
+  lws_cancel_service context
+
+interrupt_handler_wrapper : Ptr -> IO Ptr
+interrupt_handler_wrapper context = foreign FFI_C "%wrapper" (CFnPtr (Signal_handler) -> IO Ptr)
+ (MkCFnPtr (interrupt_handler context))
+
+signal_cb : Uv_signal_callback
+signal_cb watcher sig_num = unsafePerformIO $ do
+ lwsl_err $ "Signal " ++ (show sig_num) ++ " caught, exiting...\n"
+ context <- uv_user_data watcher
+ lws_libuv_stop context
+
+signal_cb_wrapper : IO Ptr
+signal_cb_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Uv_signal_callback) -> IO Ptr) (MkCFnPtr signal_cb)
+
+partial
+plugins_directory_list : IO Ptr
+plugins_directory_list = do
+  let array = ARRAY 2 PTR
+  let dir = local_resource_path ++ "/plugins/"
+  arr <- alloc array
+  str <- string_to_c dir
+  first_fld <- pure $ (array#0)
+  poke PTR (first_fld arr) str
+  pure arr
+
+partial
+pvo : IO Ptr
+pvo = do
+  pvo_opt <- allocate_pvo null null "default" "1"
+  pvo_2 <- allocate_pvo null null "lws-status" ""
+  pvo_1 <- allocate_pvo pvo_2 null "lws-mirror-protocol" ""
+  allocate_pvo pvo_1 pvo_opt "dumb-increment-protocol" ""  
   
+ssl_cipher_list : String
+ssl_cipher_list = """
+ECDHE-ECDSA-AES256-GCM-SHA384:
+ECDHE-RSA-AES256-GCM-SHA384:
+DHE-RSA-AES256-GCM-SHA384:
+ECDHE-RSA-AES256-SHA384:
+HIGH:!aNULL:!eNULL:!EXPORT:
+!DES:!MD5:!PSK:!RC4:!HMAC_SHA1:
+!SHA1:!DHE-RSA-AES128-GCM-SHA256:
+!DHE-RSA-AES128-SHA256:
+!AES128-GCM-SHA256:
+!AES128-SHA256:
+!DHE-RSA-AES256-SHA256:
+!AES256-GCM-SHA384:!AES256-SHA256"""
+
 ||| Set-up and run the server
 |||
 ||| @options - parsed command-line options
@@ -242,6 +298,7 @@ setup_server opts = do
   conditionally_set_interface conn_info opts
   set_gid conn_info $ fromInteger $ cast $ fromMaybe (-1) (gid opts)
   set_uid conn_info $ fromInteger $ cast $ fromMaybe (-1) (uid opts)
+  set_log_mask LOG_DEBUG True
   open_log "lwsts" (logging_options opts) LOG_DAEMON
   set_log_level_syslog (fromMaybe 7 (debug opts))
   lwsl_notice "libwebsockets test server ported to Idris - license LGPL2.1+SLE\n"
@@ -250,15 +307,32 @@ setup_server opts = do
   case ssl opts of
     False => pure ()
     True  => check_ssl conn_info opts
+  set_timeouts conn_info $ the Bits32 5
+  set_ssl_cipher_list conn_info ssl_cipher_list
+  set_plugin_dirs conn_info !plugins_directory_list
+  set_mounts conn_info !(allocate_filesystem_mount null "/" local_resource_path "test.html")
+  set_pvo conn_info !pvo
   set_max_http_header_pool conn_info 16
-  exts <-add_extensions conn_info
-  set_extensions conn_info exts
-  -- TODO
-  free exts
-  close_log
- -- TODO poll
- 
- 
+  --exts <-add_extensions conn_info
+  --set_extensions conn_info exts
+  context <- create_context conn_info
+  if context == null then do
+    lwsl_err "libwebsocket init failed\n"
+    exit (-1)
+  else do
+    -- install_signal_handler SIGINT (interrupt_handler_wrapper context)
+    lws_uv_sigint_cfg context 1 signal_cb_wrapper
+    uv_loop_ok <- lws_uv_initloop context null 0
+    if uv_loop_ok == 0 then
+      lws_libuv_run context 0
+    else
+      lwsl_err "lws_uv_initloop failed\n"
+    lws_context_destroy context
+    lwsl_notice "libwebsockets-test-server exited cleanly\n"
+    --free exts
+    close_log
+    exit 0
+
 partial
 main : IO ()
 main = do
@@ -269,7 +343,7 @@ main = do
       putStrLn "Parse error"
       putStrLn err
       exit 1
-    Left (InvalidOption arg)     => do
+    Left (InvalidOption arg)  => do
       putStrLn $ "Invalid option: " ++ (show arg)
       exit 1
     Right opts => case help opts of

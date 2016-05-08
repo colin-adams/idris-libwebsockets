@@ -33,3 +33,8 @@ void * pm_deflate ()
 {
   return (void *) lws_extension_callback_pm_deflate;
 }
+
+void * uv_user_data (uv_signal_t *watcher)
+{
+  return watcher->data;
+}

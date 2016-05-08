@@ -38,42 +38,83 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 ||| count_threads - how many contexts to create in an array, 0 = 1
 ||| fd_limit_per_thread - nonzero means restrict each service thread to this any fds, 0 means the default which is divide the process fd limit by the number of threads.
 ||| timeout_secs - various processes involving network roundtrips in the library are protected from hanging forever by timeouts.  If nonzero, this member lets you set the timeout used in seconds. Otherwise a default timeout is used.
-||| 8 unused pointers follow
+||| ecdh_curve - if null, defaults to initializing server with "prime256v1"
+||| vhost_name - name of vhost, must match external DNS name used to access the site, like "warmcat.com" as it's used to match Host: header and / or SNI name for SSL.
+||| plugin_dirs - null, or null-terminated array of directories to scan for lws protocol plugins at context creation time
+||| pvo - pointer to optional linked list of per-vhost options made accessible to protocols
+||| keepalive_timeout - (default = 0 = 60s) seconds to allow remote client to hold on to an idle HTTP/1.1 connection
+||| log_filepath - filepath to append logs to... this is opened before any dropping of initial privileges
+||| mounts - optional linked list of mounts for this vhost
+||| server_string - tring used in HTTP headers to identify server software, if null, "libwebsockets".
 private
 connection_information_struct : Composite
-connection_information_struct = STRUCT [I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I32, I32, PTR, I32, I32, I32, PTR, I16, I16, I32, I32, I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR]
+connection_information_struct = STRUCT [I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I32, I32, PTR, I32, I32, I32, PTR, I16, I16, I32, I32, I32, PTR, PTR, PTR, PTR, I32, PTR, PTR, PTR]
 
 ||| Access to the server's connection information
 connection_information : IO Ptr
 connection_information = foreign FFI_C "&connection_information" (IO Ptr)
 
 -- Field indices into connection_information_struct
+
+private
 port_field : Ptr -> CPtr
 port_field info = (connection_information_struct#0) info
 
+private
 interface_field : Ptr -> CPtr
 interface_field info = (connection_information_struct#1) info
 
+private
 extensions_field : Ptr -> CPtr
 extensions_field info = (connection_information_struct#3) info
 
+private
 ssl_cert_field : Ptr -> CPtr
-ssl_cert_field info = (connection_information_struct#5) info
+ssl_cert_field info = (connection_information_struct#6) info
 
+private
 ssl_key_field : Ptr -> CPtr
-ssl_key_field info = (connection_information_struct#6) info
+ssl_key_field info = (connection_information_struct#7) info
 
+private
+ssl_ca_field : Ptr -> CPtr
+ssl_ca_field info = (connection_information_struct#8) info
+
+private
+ssl_cipher_list_field : Ptr -> CPtr
+ssl_cipher_list_field info = (connection_information_struct#9) info
+
+private
 gid_field : Ptr -> CPtr
-gid_field info = (connection_information_struct#11) info
+gid_field info = (connection_information_struct#12) info
 
+private
 uid_field : Ptr -> CPtr
-uid_field info = (connection_information_struct#12) info
+uid_field info = (connection_information_struct#13) info
 
+private
 options_field : Ptr -> CPtr
-options_field info = (connection_information_struct#13) info
+options_field info = (connection_information_struct#14) info
 
+private
 max_http_header_pool_field : Ptr -> CPtr
-max_http_header_pool_field info = (connection_information_struct#20) info
+max_http_header_pool_field info = (connection_information_struct#21) info
+
+private
+timeout_secs_field : Ptr -> CPtr
+timeout_secs_field info = (connection_information_struct#24) info
+
+private
+plugin_dirs_field : Ptr -> CPtr
+plugin_dirs_field info = (connection_information_struct#27) info
+
+private
+pvo_field : Ptr -> CPtr
+pvo_field info = (connection_information_struct#28) info
+
+private
+mounts_field : Ptr -> CPtr
+mounts_field info = (connection_information_struct#31) info
 
 ||| Zero the connection information
 |||
@@ -89,6 +130,14 @@ set_max_http_header_pool : (info : Ptr) -> (size : Bits16) -> IO ()
 set_max_http_header_pool info size = do
   poke I16 (max_http_header_pool_field info) size
 
+||| Set the timeouts in seconds
+|||
+||| @info - Result of call to connection_information
+||| @secs - Number of seconds to timeout
+set_timeouts : (info : Ptr) -> (secs : Bits32) -> IO ()
+set_timeouts info secs = do
+  poke I32 (timeout_secs_field info) secs
+  
 ||| Set the port on which to listen
 |||
 ||| @info - Result of call to connection_information
@@ -131,6 +180,24 @@ set_ssl_key_path info key = do
   str <- string_to_c key
   poke PTR (ssl_key_field info) str
 
+||| Set the SSL CA certificate file-path
+|||
+||| @info - Result of call to connection_information
+||| @ca - file path to the CA certificate
+set_ssl_ca_filepath : (info : Ptr) -> (ca : String) -> IO ()
+set_ssl_ca_filepath info ca = do
+  str <- string_to_c ca
+  poke PTR (ssl_ca_field info) str
+
+||| Set the SSL cipher list
+|||
+||| @info    - Result of call to connection_information
+||| @ciphers - cipher list
+set_ssl_cipher_list : (info : Ptr) -> (ciphers : String) -> IO ()
+set_ssl_cipher_list info ciphers = do
+  str <- string_to_c ciphers
+  poke PTR (ssl_cipher_list_field info) str
+
 ||| Set the only interface on which to listen
 |||
 ||| @info - Result of call to connection_information
@@ -148,6 +215,29 @@ set_extensions : (info : Ptr) -> (exts : Ptr) -> IO ()
 set_extensions info exts = do
   poke PTR (extensions_field info) exts
 
+||| Set plugins directory lisy
+|||
+||| @info - Result of call to connection_information
+||| @dirs - The directories to scan
+set_plugin_dirs : (info : Ptr) -> (dirs : Ptr) -> IO ()
+set_plugin_dirs info dirs = do
+  poke PTR (plugin_dirs_field info) dirs
+  
+||| Set vhosts options
+|||
+||| @info - Result of call to connection_information
+||| @pvo  - The list of per-vhost options
+set_pvo : (info : Ptr) -> (pvo : Ptr) -> IO ()
+set_pvo info pvo = do
+  poke PTR (pvo_field info) pvo
+  
+||| Set mounts for vhost
+|||
+||| @info   - Result of call to connection_information
+||| @mounts - The mounts to use
+set_mounts : (info : Ptr) -> (mounts : Ptr) -> IO ()
+set_mounts info mounts = do
+  poke PTR (mounts_field info) mounts
 -- server options
 
 LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT : Bits32
@@ -202,9 +292,9 @@ LWS_SERVER_OPTION_STS = 32768
 ||| @options - Options to be set
 set_options : (info : Ptr) -> (options : Bits32) -> IO ()
 set_options info options = do
-  poke I32 (port_field info) options
+  poke I32 (options_field info) options
 
-||| Create the websocket handler
+||| Create the websocket handler's execution context
 ||| This function creates the listening socket (if serving) and takes care of all initialization in one step.
 ||| After initialization, it returns a struct lws_context * that represents this server. After calling, user code needs to take care of calling lws_service with the context pointer to get the server's sockets serviced. This must be done in the same process context as the initialization call.
 ||| The protocol callback functions are called for a handful of events including http requests coming in, websocket connections becoming established, and data arriving; it's also called periodically to allow async transmission.
@@ -215,3 +305,6 @@ set_options info options = do
 ||| @context_creation_info - parameters needed to create the context
 create_context : (context_creation_info : Ptr) -> IO Ptr
 create_context info = foreign FFI_C "lws_create_context" (Ptr -> IO Ptr) info
+
+lws_context_destroy : (context : Ptr) -> IO ()
+lws_context_destroy context = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context

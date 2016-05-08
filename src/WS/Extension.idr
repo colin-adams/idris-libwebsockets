@@ -45,7 +45,6 @@ lws_extension_callback_deflate_pm : IO Ptr
 lws_extension_callback_deflate_pm = foreign FFI_C "pm_deflate" (IO Ptr) 
   
 ||| Fill in pre-allocated extensions array with an Idris-written extension
-||| (not sure if this is possible yet)
 |||
 ||| @array        - Extensions array to be filled
 ||| @slot         - Extension number to fill - this had better be in range
