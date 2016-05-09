@@ -152,8 +152,6 @@ set_protocol_user_data : (user : Ptr) -> (protocol : Ptr) -> IO ()
 set_protocol_user_data user protocol =
   poke PTR (user_field protocol) user
 
-||| Allocate the protocols array for @count + 1 structures
-||| (the additional 1 is the null terminator)
 |||
 ||| @count - how many protocols we shall support (including http)
 export

@@ -76,6 +76,11 @@ export
 LWSMPRO_REDIR_HTTPS : Bits8
 LWSMPRO_REDIR_HTTPS = 5
 
+||| Protocol implemented by a callback
+export
+LWSMPRO_CALLBACK : Bits8
+LWSMPRO_CALLBACK = 6
+
 
 ||| Allocate a mount point
 export
@@ -102,6 +107,26 @@ allocate_filesystem_mount next mount_point path def = do
   str <- string_to_c def
   poke PTR (default_field res) str  
   poke I8 (origin_protocol_field res) LWSMPRO_FILE
+  let len = toIntegerNat $ length mount_point
+  let b8 = fromInteger len
+  poke I8 (mountpoint_length_field res) b8
+  pure res
+
+||| Allocate a callback mount point
+|||
+||| @next        - next mount point
+||| @mount_point - e.g. "/"
+||| @callback     - Name of handler
+export
+allocate_callback_mount : (next : Ptr) -> (mount_point : String) -> (callback : String)  -> IO Ptr
+allocate_callback_mount next mount_point callback = do
+  res <- allocate_mount
+  poke PTR (next_field res) next
+  str <- string_to_c mount_point
+  poke PTR (mountpoint_field res) str
+  str <- string_to_c callback
+  poke PTR (origin_field res) str
+  poke I8 (origin_protocol_field res) LWSMPRO_CALLBACK
   let len = toIntegerNat $ length mount_point
   let b8 = fromInteger len
   poke I8 (mountpoint_length_field res) b8

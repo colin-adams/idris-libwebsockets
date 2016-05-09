@@ -4,6 +4,10 @@ modules = Main
 
 executable = test_server
 
+makefile = Makefile
+
+objs = test_server.o, test_server.h
+
 main = Test_server
 
 pkgs = libwebsockets,contrib,posix,argparse

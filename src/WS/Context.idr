@@ -65,6 +65,10 @@ interface_field : Ptr -> CPtr
 interface_field info = (connection_information_struct#1) info
 
 private
+protocols_field : Ptr -> CPtr
+protocols_field info = (connection_information_struct#2) info
+
+private
 extensions_field : Ptr -> CPtr
 extensions_field info = (connection_information_struct#3) info
 
@@ -214,6 +218,14 @@ set_interface info iface = do
 set_extensions : (info : Ptr) -> (exts : Ptr) -> IO ()
 set_extensions info exts = do
   poke PTR (extensions_field info) exts
+
+||| Set protocols in use
+|||
+||| @info - Result of call to connection_information
+||| @prots - The protocols to use
+set_protocols : (info : Ptr) -> (prots : Ptr) -> IO ()
+set_protocols info prots = do
+  poke PTR (protocols_field info) prots
 
 ||| Set plugins directory lisy
 |||
