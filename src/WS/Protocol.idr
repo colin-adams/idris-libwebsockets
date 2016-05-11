@@ -48,12 +48,15 @@ id_field prots = (protocols_structure#4) prots
 user_field : Ptr -> CPtr
 user_field prots = (protocols_structure#5) prots
 
+export
+data Protocol = Make_protocol Ptr
+
 ||| Protocol name
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_name : (protocol : Ptr) -> IO String
-protocol_name protocol = do
+protocol_name : (protocol : Protocol) -> IO String
+protocol_name (Make_protocol protocol) = do
   str <- peek PTR (name_field protocol)
   string_from_c str
   
@@ -61,40 +64,40 @@ protocol_name protocol = do
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_callback : (protocol : Ptr) -> IO Ptr
-protocol_callback protocol =
+protocol_callback : (protocol : Protocol) -> IO Ptr
+protocol_callback  (Make_protocol protocol) =
   peek PTR (callback_field protocol)
   
 ||| Protocol's per_session_data_size
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_per_session_data_size : (protocol : Ptr) -> IO Bits64
-protocol_per_session_data_size protocol =
+protocol_per_session_data_size : (protocol : Protocol) -> IO Bits64
+protocol_per_session_data_size  (Make_protocol protocol) =
   peek I64 (per_session_data_size_field protocol)
 
 ||| Protocol's rx_buffer_size
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_rx_buffer_size : (protocol : Ptr) -> IO Bits64
-protocol_rx_buffer_size protocol =
+protocol_rx_buffer_size : (protocol : Protocol) -> IO Bits64
+protocol_rx_buffer_size  (Make_protocol protocol) =
   peek I64 (rx_buffer_size_field protocol)
 
 ||| Protocol's id
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_id : (protocol : Ptr) -> IO Bits32
-protocol_id protocol =
+protocol_id : (protocol : Protocol) -> IO Bits32
+protocol_id  (Make_protocol protocol) =
   peek I32 (id_field protocol)
 
 ||| Protocol's user data
 |||
 ||| @protocol - pointer to a protocols_structure
 export
-protocol_user_data : (protocol : Ptr) -> IO Ptr
-protocol_user_data protocol =
+protocol_user_data : (protocol : Protocol) -> IO Ptr
+protocol_user_data  (Make_protocol protocol) =
   peek PTR (user_field protocol)
 
 ||| Set protocol's name
@@ -102,8 +105,8 @@ protocol_user_data protocol =
 ||| @name     - name to set
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_name : (name: String) -> (protocol : Ptr) -> IO ()
-set_protocol_name name protocol = do
+set_protocol_name : (name: String) -> (protocol : Protocol) -> IO ()
+set_protocol_name name  (Make_protocol protocol) = do
   str <- string_to_c name
   poke PTR (name_field protocol) str
 
@@ -112,8 +115,8 @@ set_protocol_name name protocol = do
 ||| @callback - C wrapper for an Idris service callback
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_callback : (callback : Ptr) -> (protocol : Ptr) -> IO ()
-set_protocol_callback callback protocol =
+set_protocol_callback : (callback : Ptr) -> (protocol : Protocol) -> IO ()
+set_protocol_callback callback  (Make_protocol protocol) =
   poke PTR (callback_field protocol) callback
   
 ||| Set protocol's per_session_data_size
@@ -121,8 +124,8 @@ set_protocol_callback callback protocol =
 ||| @size     - size to set
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_per_session_data_size : (size : Bits64) -> (protocol : Ptr) -> IO ()
-set_protocol_per_session_data_size size protocol =
+set_protocol_per_session_data_size : (size : Bits64) -> (protocol : Protocol) -> IO ()
+set_protocol_per_session_data_size size  (Make_protocol protocol) =
   poke I64 (per_session_data_size_field protocol) size
 
 ||| Set protocol's rx_buffer_size
@@ -130,8 +133,8 @@ set_protocol_per_session_data_size size protocol =
 ||| @size     - size to set
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_rx_buffer_size : (size : Bits64) -> (protocol : Ptr) -> IO ()
-set_protocol_rx_buffer_size size protocol =
+set_protocol_rx_buffer_size : (size : Bits64) -> (protocol : Protocol) -> IO ()
+set_protocol_rx_buffer_size size  (Make_protocol protocol) =
   poke I64 (rx_buffer_size_field protocol) size
 
 ||| Set protocol's id
@@ -139,8 +142,8 @@ set_protocol_rx_buffer_size size protocol =
 ||| @id       - id to set
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_id : (id : Bits32) -> (protocol : Ptr) -> IO ()
-set_protocol_id id protocol =
+set_protocol_id : (id : Bits32) -> (protocol : Protocol) -> IO ()
+set_protocol_id id  (Make_protocol protocol) =
   poke I32 (id_field protocol) id
 
 ||| Set protocol's user data
@@ -148,17 +151,24 @@ set_protocol_id id protocol =
 ||| @user     - pointer to user data to be set
 ||| @protocol - pointer to a protocols_structure
 export
-set_protocol_user_data : (user : Ptr) -> (protocol : Ptr) -> IO ()
-set_protocol_user_data user protocol =
+set_protocol_user_data : (user : Ptr) -> (protocol : Protocol) -> IO ()
+set_protocol_user_data user  (Make_protocol protocol) =
   poke PTR (user_field protocol) user
+
+export
+data Protocols_array = Make_protocols_array Ptr
+
+export
+unwrap_protocols_array : Protocols_array -> Ptr
+unwrap_protocols_array (Make_protocols_array p) = p
 
 |||
 ||| @count - how many protocols we shall support (including http)
 export
-allocate_protocols_array : (count : Int) -> IO Ptr
+allocate_protocols_array : (count : Int) -> IO Protocols_array
 allocate_protocols_array count = do
   cpt <- alloc (ARRAY (count + 1) protocols_structure)
-  pure $ toPtr cpt
+  pure $ Make_protocols_array $ toPtr cpt
 
 ||| Fill in pre-allocated protocols array with a protocol
 |||
@@ -172,9 +182,9 @@ allocate_protocols_array count = do
 ||| @id          - protocol-specific identifier
 ||| @user        - user-provided content data
 export
-add_protocol_handler : (array : Ptr) -> (size : Nat) -> (slot : Fin size) -> (name : String) -> (handler : IO Ptr) ->
+add_protocol_handler : (array : Protocols_array) -> (size : Nat) -> (slot : Fin size) -> (name : String) -> (handler : IO Ptr) ->
   (data_size : Bits64) ->  (buffer_size : Bits64) -> (id : Bits32) -> (user : Ptr) -> IO ()
-add_protocol_handler array size slot name handler data_size buffer_size id user = do
+add_protocol_handler (Make_protocols_array array) size slot name handler data_size buffer_size id user = do
   struct <- pure $ ((protocols_array $ toIntNat size)#(finToNat slot)) array
   str <- string_to_c name
   poke PTR (name_field struct) str

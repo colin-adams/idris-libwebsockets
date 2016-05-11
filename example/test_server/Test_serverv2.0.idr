@@ -1,4 +1,5 @@
-||| Port of libwebsockets-test-server - libwebsockets test implementation - pre v2.0 style
+--Rename this to Test_server.idr if ever we can compile to .so files
+||| Port of libwebsockets-test-server - libwebsockets v2.0 test implementation
 module Main
 
 import WS.Context
@@ -17,8 +18,7 @@ import Data.String
 import CFFI
 import System
 
---import Dumb_increment
-import Http_only
+import Dumb_increment
 
 %default total
 
@@ -201,7 +201,7 @@ options_from_arguments opts = let base  = LWS_SERVER_OPTION_VALIDATE_UTF8 + LWS_
 ||| @conn_info - server's connection information
 ||| @options - parsed command-line options
 partial
-conditionally_set_interface : (conn_info : Context_info) -> (options : Options) -> IO ()
+conditionally_set_interface : (conn_info : Ptr) -> (options : Options) -> IO ()
 conditionally_set_interface conn_info opts = do
   case interfaace opts of
     Nothing    => pure ()
@@ -212,7 +212,7 @@ conditionally_set_interface conn_info opts = do
 ||| @conn_info - server's connection information
 ||| @options - parsed command-line options
 partial
-check_ssl : (conn_info : Context_info) -> (options : Options) -> IO ()
+check_ssl : (conn_info : Ptr) -> (options : Options) -> IO ()
 check_ssl info opts = do
   let ch_r_p = chosen_resource_path opts
   let kp = key_path opts
@@ -232,28 +232,35 @@ check_ssl info opts = do
       Just ca => set_ssl_ca_filepath info ca
 ||| Allocate and add the extension services
 partial
-add_extensions : (conn_info : Context_info) -> IO Extensions_array
+add_extensions : (conn_info : Ptr) -> IO Ptr
 add_extensions conn_info = do
   exts <- allocate_extensions_array 2
   add_extension exts 3 0 "permessage-deflate" lws_extension_callback_deflate_pm "permessage-deflate"
   add_extension exts 3 1 "deflate-frame" lws_extension_callback_deflate_pm "deflate_frame"
   pure exts
 
-||| Allocate and install the protocols, since we can't use plugins TODO
+||| Mount-points in the URI space
 partial
-install_protocols : (info : Context_info) -> IO ()
+mount_points : IO Ptr
+mount_points = do 
+  post_mount <- allocate_callback_mount null "/formtest" "protocol-post-demo"
+  allocate_filesystem_mount post_mount "/" local_resource_path "test.html"
+
+{-
+||| Allocate and install the protocols, since we can't use plugins
+partial
+install_protocols : (info : Ptr) -> IO ()
 install_protocols info = do
   array <- allocate_protocols_array 1
-  add_protocol_handler array 2 0 http_protocol_name http_wrapper http_data_size http_rx_buffer_size 0 null
-  -- add_protocol_handler array 2 0 dumb_increment_protocol_name dumb_increment_wrapper dumb_increment_data_size dumb_increment_rx_buffer_size 0 null
+  add_protocol_handler array 2 0 dumb_increment_protocol_name dumb_increment_wrapper dumb_increment_data_size dumb_increment_rx_buffer_size 0 null
   set_protocols info array
-
+-}
 ||| Cancel servicing of pending websocket activity when Ctrl-C is pressed
-interrupt_handler : Context -> Signal_handler
+interrupt_handler : Ptr -> Signal_handler
 interrupt_handler context sig_num = unsafePerformIO $ do
-  lws_cancel_service $ unwrap_context context
+  lws_cancel_service context
 
-interrupt_handler_wrapper : Context -> IO Ptr
+interrupt_handler_wrapper : Ptr -> IO Ptr
 interrupt_handler_wrapper context = foreign FFI_C "%wrapper" (CFnPtr (Signal_handler) -> IO Ptr)
  (MkCFnPtr (interrupt_handler context))
 
@@ -269,6 +276,28 @@ signal_cb watcher sig_num = unsafePerformIO $ do
 signal_cb_wrapper : IO Ptr
 signal_cb_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Uv_signal_callback) -> IO Ptr) (MkCFnPtr signal_cb)
 
+--{- we probably can't compile Idirs to a .so, so we'll have to forgo the plugins for now - uncomment to use the C plugins - will also need to uncomment below
+partial
+plugins_directory_list : IO Ptr
+plugins_directory_list = do
+  let array = ARRAY 2 PTR
+  let dir = local_resource_path ++ "/plugins/"
+  arr <- alloc array
+  str <- string_to_c dir
+  first_fld <- pure $ (array#0)
+  poke PTR (first_fld arr) str
+  pure arr
+---}
+
+partial
+pvo : IO Ptr
+pvo = do
+  pvo_opt <- allocate_pvo null null "default" "1"
+  pvo_3 <- allocate_pvo null null "protocol-post-demo" ""
+  pvo_2 <- allocate_pvo pvo_3 null "lws-status" ""
+  pvo_1 <- allocate_pvo pvo_2 null "lws-mirror-protocol" ""
+  allocate_pvo pvo_1 pvo_opt "dumb-increment-protocol" ""  
+  
 ssl_cipher_list : String
 ssl_cipher_list = """
 ECDHE-ECDSA-AES256-GCM-SHA384:
@@ -312,12 +341,15 @@ setup_server opts = do
     True  => check_ssl conn_info opts
   set_timeouts conn_info $ the Bits32 5
   set_ssl_cipher_list conn_info ssl_cipher_list
-  install_protocols conn_info
+  set_plugin_dirs conn_info !plugins_directory_list
+  --install_protocols conn_info
+  set_mounts conn_info !mount_points
+  set_pvo conn_info !pvo
   set_max_http_header_pool conn_info 16
   exts <-add_extensions conn_info
   set_extensions conn_info exts
   context <- create_context conn_info
-  if (unwrap_context context) == null then do
+  if context == null then do
     lwsl_err "libwebsocket init failed\n"
     exit (-1)
   else do
@@ -330,7 +362,7 @@ setup_server opts = do
       lwsl_err "lws_uv_initloop failed\n"
     lws_context_destroy context
     lwsl_notice "libwebsockets-test-server exited cleanly\n"
-    free $ unwrap_extensions_array exts
+    free exts
     close_log
     exit 0
 

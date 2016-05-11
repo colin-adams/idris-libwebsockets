@@ -1,6 +1,8 @@
 ||| Functions that manipulate the libwebsockets context
 module Context
 
+import WS.Extension
+import WS.Protocol
 import CFFI
 
 %access export
@@ -50,9 +52,14 @@ private
 connection_information_struct : Composite
 connection_information_struct = STRUCT [I32, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I32, I32, PTR, I32, I32, I32, PTR, I16, I16, I32, I32, I32, PTR, PTR, PTR, PTR, I32, PTR, PTR, PTR]
 
+||| Information need for create_context
+data Context_info = Make_context_info Ptr
+
 ||| Access to the server's connection information
-connection_information : IO Ptr
-connection_information = foreign FFI_C "&connection_information" (IO Ptr)
+connection_information : IO Context_info
+connection_information = do
+  ptr <- foreign FFI_C "&connection_information" (IO Ptr)
+  pure $ Make_context_info ptr
 
 -- Field indices into connection_information_struct
 
@@ -130,48 +137,48 @@ clear_connection_information = foreign FFI_C "clear_connection_information" (IO 
 |||
 ||| @info - Result of call to connection_information
 ||| @size - size to be set
-set_max_http_header_pool : (info : Ptr) -> (size : Bits16) -> IO ()
-set_max_http_header_pool info size = do
+set_max_http_header_pool : (info : Context_info) -> (size : Bits16) -> IO ()
+set_max_http_header_pool (Make_context_info info) size = do
   poke I16 (max_http_header_pool_field info) size
 
 ||| Set the timeouts in seconds
 |||
 ||| @info - Result of call to connection_information
 ||| @secs - Number of seconds to timeout
-set_timeouts : (info : Ptr) -> (secs : Bits32) -> IO ()
-set_timeouts info secs = do
+set_timeouts : (info : Context_info) -> (secs : Bits32) -> IO ()
+set_timeouts (Make_context_info info) secs = do
   poke I32 (timeout_secs_field info) secs
   
 ||| Set the port on which to listen
 |||
 ||| @info - Result of call to connection_information
 ||| @port - The port to listen on.
-set_port : (info : Ptr) -> (port : Bits32) -> IO ()
-set_port info port = do
+set_port : (info : Context_info) -> (port : Bits32) -> IO ()
+set_port (Make_context_info info) port = do
   poke I32 (port_field info) port
 
 ||| Set the group id under which to run
 |||
 ||| @info - Result of call to connection_information
 ||| @gid - The gid to listen on.
-set_gid : (info : Ptr) -> (gid : Bits32) -> IO ()
-set_gid info gid = do
+set_gid : (info : Context_info) -> (gid : Bits32) -> IO ()
+set_gid (Make_context_info info) gid = do
   poke I32 (gid_field info) gid
 
 ||| Set the user id under which to run
 |||
 ||| @info - Result of call to connection_information
 ||| @uid - The uid to listen on.
-set_uid : (info : Ptr) -> (uid : Bits32) -> IO ()
-set_uid info uid = do
+set_uid : (info : Context_info) -> (uid : Bits32) -> IO ()
+set_uid (Make_context_info info) uid = do
   poke I32 (uid_field info) uid
  
 ||| Set the SSL certificate file-path
 |||
 ||| @info - Result of call to connection_information
 ||| @cert - file-path to the certicate
-set_ssl_certificate_path : (info : Ptr) -> (cert : String) -> IO ()
-set_ssl_certificate_path info cert = do
+set_ssl_certificate_path : (info : Context_info) -> (cert : String) -> IO ()
+set_ssl_certificate_path (Make_context_info info) cert = do
   str <- string_to_c cert
   poke PTR (ssl_cert_field info) str
  
@@ -179,8 +186,8 @@ set_ssl_certificate_path info cert = do
 |||
 ||| @info - Result of call to connection_information
 ||| @key - file path to the key
-set_ssl_key_path : (info : Ptr) -> (key : String) -> IO ()
-set_ssl_key_path info key = do
+set_ssl_key_path : (info : Context_info) -> (key : String) -> IO ()
+set_ssl_key_path (Make_context_info info) key = do
   str <- string_to_c key
   poke PTR (ssl_key_field info) str
 
@@ -188,8 +195,8 @@ set_ssl_key_path info key = do
 |||
 ||| @info - Result of call to connection_information
 ||| @ca - file path to the CA certificate
-set_ssl_ca_filepath : (info : Ptr) -> (ca : String) -> IO ()
-set_ssl_ca_filepath info ca = do
+set_ssl_ca_filepath : (info : Context_info) -> (ca : String) -> IO ()
+set_ssl_ca_filepath (Make_context_info info) ca = do
   str <- string_to_c ca
   poke PTR (ssl_ca_field info) str
 
@@ -197,8 +204,8 @@ set_ssl_ca_filepath info ca = do
 |||
 ||| @info    - Result of call to connection_information
 ||| @ciphers - cipher list
-set_ssl_cipher_list : (info : Ptr) -> (ciphers : String) -> IO ()
-set_ssl_cipher_list info ciphers = do
+set_ssl_cipher_list : (info : Context_info) -> (ciphers : String) -> IO ()
+set_ssl_cipher_list (Make_context_info info) ciphers = do
   str <- string_to_c ciphers
   poke PTR (ssl_cipher_list_field info) str
 
@@ -206,8 +213,8 @@ set_ssl_cipher_list info ciphers = do
 |||
 ||| @info - Result of call to connection_information
 ||| @iface - The sole interface to listen on.
-set_interface : (info : Ptr) -> (iface : String) -> IO ()
-set_interface info iface = do
+set_interface : (info : Context_info) -> (iface : String) -> IO ()
+set_interface (Make_context_info info) iface = do
   str <- string_to_c iface
   poke PTR (interface_field info) str
 
@@ -215,40 +222,40 @@ set_interface info iface = do
 |||
 ||| @info - Result of call to connection_information
 ||| @exts - The extensions to use
-set_extensions : (info : Ptr) -> (exts : Ptr) -> IO ()
-set_extensions info exts = do
-  poke PTR (extensions_field info) exts
+set_extensions : (info : Context_info) -> (exts : Extensions_array) -> IO ()
+set_extensions (Make_context_info info) exts = do
+  poke PTR (extensions_field info) (unwrap_extensions_array exts)
 
 ||| Set protocols in use
 |||
 ||| @info - Result of call to connection_information
 ||| @prots - The protocols to use
-set_protocols : (info : Ptr) -> (prots : Ptr) -> IO ()
-set_protocols info prots = do
-  poke PTR (protocols_field info) prots
+set_protocols : (info : Context_info) -> (prots : Protocols_array) -> IO ()
+set_protocols (Make_context_info info) prots = do
+  poke PTR (protocols_field info) (unwrap_protocols_array prots)
 
 ||| Set plugins directory lisy
 |||
 ||| @info - Result of call to connection_information
 ||| @dirs - The directories to scan
-set_plugin_dirs : (info : Ptr) -> (dirs : Ptr) -> IO ()
-set_plugin_dirs info dirs = do
+set_plugin_dirs : (info : Context_info) -> (dirs : Ptr) -> IO ()
+set_plugin_dirs (Make_context_info info) dirs = do
   poke PTR (plugin_dirs_field info) dirs
   
 ||| Set vhosts options
 |||
 ||| @info - Result of call to connection_information
 ||| @pvo  - The list of per-vhost options
-set_pvo : (info : Ptr) -> (pvo : Ptr) -> IO ()
-set_pvo info pvo = do
+set_pvo : (info : Context_info) -> (pvo : Ptr) -> IO ()
+set_pvo (Make_context_info info) pvo = do
   poke PTR (pvo_field info) pvo
   
 ||| Set mounts for vhost
 |||
 ||| @info   - Result of call to connection_information
 ||| @mounts - The mounts to use
-set_mounts : (info : Ptr) -> (mounts : Ptr) -> IO ()
-set_mounts info mounts = do
+set_mounts : (info : Context_info) -> (mounts : Ptr) -> IO ()
+set_mounts (Make_context_info info) mounts = do
   poke PTR (mounts_field info) mounts
 -- server options
 
@@ -302,9 +309,17 @@ LWS_SERVER_OPTION_STS = 32768
 |||
 ||| @info    - Result of call to connection_information
 ||| @options - Options to be set
-set_options : (info : Ptr) -> (options : Bits32) -> IO ()
-set_options info options = do
+set_options : (info : Context_info) -> (options : Bits32) -> IO ()
+set_options (Make_context_info info) options = do
   poke I32 (options_field info) options
+
+data Context = Make_context Ptr
+
+unwrap_context : Context -> Ptr
+unwrap_context (Make_context p) = p
+
+wrap_context : Ptr -> Context
+wrap_context p = Make_context p
 
 ||| Create the websocket handler's execution context
 ||| This function creates the listening socket (if serving) and takes care of all initialization in one step.
@@ -315,8 +330,10 @@ set_options info options = do
 ||| This allows the same server to provide files like scripts and favicon / images or whatever over http and dynamic data over websockets all in one place; they're all handled in the user callback.
 |||
 ||| @context_creation_info - parameters needed to create the context
-create_context : (context_creation_info : Ptr) -> IO Ptr
-create_context info = foreign FFI_C "lws_create_context" (Ptr -> IO Ptr) info
+create_context : (context_creation_info : Context_info) -> IO Context
+create_context (Make_context_info info) = do
+  ptr <- foreign FFI_C "lws_create_context" (Ptr -> IO Ptr) info
+  pure $ Make_context ptr
 
-lws_context_destroy : (context : Ptr) -> IO ()
-lws_context_destroy context = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context
+lws_context_destroy : (context : Context) -> IO ()
+lws_context_destroy (Make_context context) = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context
