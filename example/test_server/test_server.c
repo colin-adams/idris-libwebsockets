@@ -30,3 +30,22 @@ int is_close_testing ()
 {
   return close_testing_flag;
 }
+
+void print_pointer (const char * nm, const void * ptr)
+{
+  printf ("%s is %p\n", nm, ptr);
+}
+
+struct per_vhost_data__dumb_increment {
+	uv_timer_t timeout_watcher;
+	struct lws_context *context;
+	struct lws_vhost *vhost;
+	const struct lws_protocols *protocol;
+};
+
+void * per_vhost_data__dumb_increment_from_timeout_watcher (uv_timer_t *tw)
+{
+  struct per_vhost_data__dumb_increment *vhd = lws_container_of(tw,
+	     struct per_vhost_data__dumb_increment, timeout_watcher);
+  return vhd;
+}

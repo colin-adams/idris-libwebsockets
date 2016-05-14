@@ -337,3 +337,5 @@ create_context (Make_context_info info) = do
 
 lws_context_destroy : (context : Context) -> IO ()
 lws_context_destroy (Make_context context) = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context
+
+

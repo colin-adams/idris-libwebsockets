@@ -59,3 +59,31 @@ uv_user_data : Ptr -> IO Context
 uv_user_data watcher = do
   ptr <- foreign FFI_C  "uv_user_data" (Ptr -> IO Ptr) watcher
   pure $ wrap_context ptr
+
+|||
+|||
+||| @handle - Stop the timer, the callback will not be called anymore.
+export
+uv_timer_stop : (handle : Ptr) -> IO Int
+uv_timer_stop handle = foreign FFI_C "uv_timer_stop" (Ptr -> IO Int) handle
+
+export
+lws_uv_getloop : (wsi : Ptr) -> (tsi : Int) -> IO Ptr
+lws_uv_getloop wsi tsi = foreign FFI_C "lws_uv_getloop" (Ptr -> Int -> IO Ptr) wsi tsi
+
+||| Initialize the handle.
+export
+uv_timer_init : (loop : Ptr) -> (handle : Ptr) -> IO Int
+uv_timer_init loop handle = foreign FFI_C "uv_timer_init" (Ptr -> Ptr -> IO Int) loop handle
+
+||| Start the timer. @timeout and @repeat are in milliseconds.
+|||
+||| If @timeout is zero, the callback fires on the next event loop iteration. 
+||| If @repeat is non-zero, the callback fires first after @timeout milliseconds and then repeatedly after @repeat milliseconds.
+||| @cb - calback function
+export
+uv_timer_start : (handle : Ptr) -> (cb : Ptr) -> (timeout : Bits64) -> (repeat : Bits64) -> IO Int
+uv_timer_start handle cb timeout repeat = foreign FFI_C "uv_timer_start" (Ptr -> Ptr -> Bits64 -> Bits64 -> IO Int)
+ handle cb timeout repeat
+
+

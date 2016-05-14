@@ -4,6 +4,7 @@
 #include <string.h>
 #include <libwebsockets.h>
 
+
 char * string_to_c (char * str) {
   char * dest;
   dest = malloc (strlen (str) + 1);
@@ -38,3 +39,9 @@ void * uv_user_data (uv_signal_t *watcher)
 {
   return watcher->data;
 }
+
+size_t uv_timer_t_size ()
+{
+  return sizeof(uv_timer_t);
+}
+

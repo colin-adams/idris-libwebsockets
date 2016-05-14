@@ -191,6 +191,7 @@ LWS_CALLBACK_PROTOCOL_INIT : Int
 LWS_CALLBACK_PROTOCOL_INIT = 27
 
 ||| One-time call per protocol indicating this protocol won't get used at all after this callback, the context is getting destroyed. Take the opportunity to deallocate everything that was allocated by the protocol.
+export
 LWS_CALLBACK_PROTOCOL_DESTROY : Int
 LWS_CALLBACK_PROTOCOL_DESTROY = 28
 

@@ -193,3 +193,9 @@ add_protocol_handler (Make_protocols_array array) size slot name handler data_si
   poke I64 (rx_buffer_size_field struct) buffer_size
   poke I32 (id_field struct) id
   poke PTR (user_field struct) user
+
+export
+lws_protocol_get : (wsi : Ptr) -> IO Protocols_array
+lws_protocol_get wsi = do
+  array <- foreign FFI_C "lws_protocol_get" (Ptr -> IO Ptr) wsi
+  pure $ Make_protocols_array array
