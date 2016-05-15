@@ -29,7 +29,7 @@ OK = 0
 ||| Failure return code from a Callback_handler
 export
 FAIL : Int
-FAIL = 1
+FAIL = -1
 
 -- reason codes:
 

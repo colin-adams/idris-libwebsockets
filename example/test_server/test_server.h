@@ -7,6 +7,8 @@ void * transmission_buffer (unsigned int size);
 
 void * transmission_buffer_start (void * buf);
 
+void fill_buffer (char * buf, const char * text);
+
 void close_testing (void);
 
 void open_testing (void);

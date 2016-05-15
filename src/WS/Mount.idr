@@ -22,7 +22,7 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 ||| origin_protocol
 ||| mountpoint length
 mount_structure : Composite
-mount_structure = STRUCT [PTR, PTR, PTR, PTR, PTR, I32, I32, I8, I8, I8]
+mount_structure = STRUCT [PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I8, I8, I8]
 
 -- Field indices into mount_structure
 
@@ -39,10 +39,10 @@ default_field : Ptr -> CPtr
 default_field mount = (mount_structure#3) mount
 
 origin_protocol_field : Ptr -> CPtr
-origin_protocol_field mount = (mount_structure#8) mount
+origin_protocol_field mount = (mount_structure#9) mount
 
 mountpoint_length_field : Ptr -> CPtr
-mountpoint_length_field mount = (mount_structure#9) mount
+mountpoint_length_field mount = (mount_structure#10) mount
 
 -- values for origin_protocol field:
 

@@ -1,6 +1,5 @@
 #include <libwebsockets.h>
-#include "init.h"
-#include "destroy.h"
+#include "exports.h"
 
 static VM *vm;
 

@@ -7,7 +7,7 @@ import WS.Daemon
 import WS.Extension
 import WS.Service
 import WS.Mount
-import WS.Vhost_options
+import WS.Vhost
 import WS.Uv
 import WS.Protocol
 import System.Posix.Syslog

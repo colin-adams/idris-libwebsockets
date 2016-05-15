@@ -43,7 +43,7 @@ uv_timer_t : Int -> Composite
 uv_timer_t sz = ARRAY sz I8
 
 per_vhost_data__dumb_increment : Composite
-per_vhost_data__dumb_increment = STRUCT [uv_timer_t 152, PTR, PTR, PTR]
+per_vhost_data__dumb_increment = STRUCT [uv_timer_t 152, PTR, PTR, PTR] -- TODO use a type provider rather than hard-code 152? https://github.com/idris-lang/Idris-dev/wiki/Tutorial:-Type-Providers-and-Foreign-Functions
 
 timeout_watcher_field : Ptr -> CPtr
 timeout_watcher_field p = (per_vhost_data__dumb_increment#0) p
@@ -66,6 +66,9 @@ transmission_buffer size = foreign FFI_C "transmission_buffer" (Int -> IO Ptr) s
 transmission_buffer_start : Ptr -> IO Ptr
 transmission_buffer_start buffer = foreign FFI_C "transmission_buffer_start" (Ptr -> IO Ptr) buffer
 
+fill_buffer : Ptr -> Ptr -> IO ()
+fill_buffer buffer str = foreign FFI_C "fill_buffer" (Ptr -> Ptr -> IO ()) buffer str
+
 is_close_testing : IO Int
 is_close_testing = foreign FFI_C "is_close_testing" (IO Int)
 
@@ -74,47 +77,39 @@ open_testing = foreign FFI_C "open_testing" (IO ())
 
 write_response : (wsi : Ptr) -> (user : Ptr) -> IO Int
 write_response wsi user = do
-  putStrLn "Write response entered ..."
   current_count <- peek I32 ((per_session_data_structure#0) user)
   poke I32 ((per_session_data_structure#0) user) (current_count + 1)
   buffer <- transmission_buffer 512
   let new_count = prim__truncB32_Int $ current_count + 1
   let buffer_text = show new_count
   let len = fromInteger $ toIntegerNat $ length buffer_text
-  putStrLn $ "WWWWWWWWWWWWWWWWWWWWWWWWWWriting response: " ++ buffer_text
   write_position <- transmission_buffer_start buffer
+  fill_buffer write_position !(string_to_c buffer_text)
   m <- lws_write wsi write_position len LWS_WRITE_TEXT
-  putStrLn $ "Wrote: " ++ (show m) ++ " bytes"
   free buffer
   if m < (prim__truncB64_Int len) then do
     lwsl_err $ "ERROR " ++ (show len) ++ " writing to di socket`n" 
-    putStrLn $ "ERROR " ++ (show len) ++ " writing to di socket`n" 
     pure FAIL
   else do
     problem <- is_close_testing
     if problem == 1 && current_count == 49 then do
-      putStrLn  "close testing limit, closing\n"
       lwsl_info "close testing limit, closing\n"
       pure FAIL
     else do
-      putStrLn "Successfull write"
       pure OK
 
 receive_request : (wsi : Ptr) -> (user : Ptr) -> (inp : Ptr) -> (len : Bits64) -> IO Int
 receive_request wsi user inp len = do
-  putStrLn "Receive request entered ..."
   if len < 6 then
     pure OK
   else do
     in_str <- string_from_c inp
     if in_str == "reset\n" then do
-      putStrLn "Reseting as requested"
       poke I32 ((per_session_data_structure#0) user) 0
       pure OK
     else
       pure OK
     if in_str == "closeme\n" then do
-      putStrLn "Closing as requested"
       lwsl_notice "dumb_inc: closing as requested\n"
       str <- string_to_c "seeya"
       lws_close_reason wsi LWS_CLOSE_STATUS_GOINGAWAY str 5
@@ -134,20 +129,10 @@ per_vhost_data__dumb_increment_from_timeout_watcher tw =
   
 uv_timeout_cb_dumb_increment : (timeout_watcher : Ptr) -> ()
 uv_timeout_cb_dumb_increment tw = unsafePerformIO $ do
-  putStrLn "UV timeout callback entered ..."
-  if tw == null then
-      putStrLn "Null watcher"
-  else
-    print_pointer "Watcher"  tw
   vhd <- per_vhost_data__dumb_increment_from_timeout_watcher tw
-  if vhd == null then
-      putStrLn "Null vhd"
-  else
-    print_pointer "VHD"  vhd    
   vhost <- peek PTR (vhost_field vhd)
   prots <- peek PTR (protocols_field vhd)
   __ <- lws_callback_on_writable_all_protocol_vhost vhost prots
-  putStrLn "UV timeout callback exited."
   pure ()
   
 uv_timeout_cb_wrapper : IO Ptr
@@ -156,57 +141,33 @@ uv_timeout_cb_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Ptr -> ()) -> IO Ptr)
 
 init_protocol : (wsi : Ptr) -> IO Int
 init_protocol wsi = do
-  putStrLn "Init_protocol entered ..."
   vh   <- lws_vhost_get wsi
-  if (unwrap_vhost vh) == null then
-      putStrLn "Null vhost"
-  else
-    print_pointer "Vhost"  (unwrap_vhost vh)
   prot <- lws_protocol_get wsi
-  if (unwrap_protocols_array prot) == null then
-      putStrLn "Null protocols"
-  else
-    print_pointer "Protocols"  (unwrap_protocols_array prot)
   vhd  <- lws_protocol_vh_priv_zalloc vh prot 176 -- = hand calculation of STRUCT - 152 + 3 x 64-bit pointers
-  if vhd == null then
-      putStrLn "Null vhd"
-  else
-    print_pointer "VHD"  vhd
   ctx  <- lws_get_context wsi
-  if ctx == null then
-      putStrLn "Null context"
-  else
-    pure ()
   sz   <- uv_timer_t_size
   let size = prim__truncB64_Int sz
-  putStrLn $ "Size is " ++ (show size)
   poke PTR (context_field vhd) ctx
   poke PTR (protocols_field vhd) (unwrap_protocols_array prot)
   poke PTR (vhost_field vhd) (unwrap_vhost vh)
   loop <- lws_uv_getloop ctx 0
   uv_timer_init loop vhd
   uv_timer_start vhd !(uv_timeout_cb_wrapper) 50 50
-  putStrLn "Init_protocol exited."
   pure OK
   
 destroy_protocol : (wsi : Ptr) -> IO Int
 destroy_protocol wsi = do
-  putStrLn "Destroy_protocol entered ..."
   vh   <- lws_vhost_get wsi
   prot <- lws_protocol_get wsi
   vhd  <- lws_protocol_vh_priv_get vh prot
   if vhd == null then do
-    putStrLn "Destroy_protocol exited with null vhd."
     pure OK
   else do
-    putStrLn "Destroy_protocol exiting with non-null vhd..."
     uv_timer_stop vhd
-    putStrLn "Destroy_protocol exited with non-null vhd."
     pure OK
 
 dumb_increment_handler : Callback_handler
 dumb_increment_handler wsi reason user inp len = unsafePerformIO $ do
-  putStrLn "Handler entered ..."
   if reason == LWS_CALLBACK_PROTOCOL_INIT then do
     init_protocol wsi
   else do
@@ -214,10 +175,8 @@ dumb_increment_handler wsi reason user inp len = unsafePerformIO $ do
       destroy_protocol wsi
     else do
       if reason == LWS_CALLBACK_ESTABLISHED then do
-        putStrLn "Callback established entered ..."
         poke I32 ((per_session_data_structure#0) user) 0
         open_testing
-        putStrLn "Callback established exited."        
         pure OK
       else do
         if reason == LWS_CALLBACK_SERVER_WRITEABLE then
@@ -232,7 +191,6 @@ dumb_increment_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Callback_handler) -> 
 
 init_dumb_increment_protocol: (context : Ptr) -> (capabilities : Ptr) -> Int
 init_dumb_increment_protocol context caps = unsafePerformIO $ do
-  putStrLn "Init entered ..."
   magic <- api_magic caps
   if magic /= LWS_PLUGIN_API_MAGIC then do
     lwsl_err $ "Plugin API " ++ show (LWS_PLUGIN_API_MAGIC) ++ ", library API " ++ (show magic)
@@ -243,16 +201,12 @@ init_dumb_increment_protocol context caps = unsafePerformIO $ do
       dumb_increment_rx_buffer_size 0 null
     set_capabilities_protocols caps array 1
     set_capabilities_extensions caps null 0
-    putStrLn "Init left"
     return OK
-
-init_function: FFI_Export FFI_C "init.h" []
-init_function = Fun init_dumb_increment_protocol "init_protocol_dumb_increment_exported" End
 
 destroy_protocol_dumb_increment : (context : Ptr) -> Int
 destroy_protocol_dumb_increment context = OK
 
-destroy_function: FFI_Export FFI_C "destroy.h" []
-destroy_function = Fun destroy_protocol_dumb_increment "destroy_protocol_dumb_increment_exported" End
+exports: FFI_Export FFI_C "exports.h" []
+exports = Fun init_dumb_increment_protocol "init_protocol_dumb_increment_exported" $ Fun destroy_protocol_dumb_increment "destroy_protocol_dumb_increment_exported" $ End
 
 

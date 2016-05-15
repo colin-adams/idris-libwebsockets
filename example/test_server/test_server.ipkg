@@ -1,6 +1,6 @@
 package test_server
 
-modules = Main, Http_only, Dumb_increment
+modules = Main
 
 executable = test_server
 

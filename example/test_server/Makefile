@@ -10,4 +10,4 @@ all: $(SRCS)
 	$(CC) $(CFLAGS) -c $(SRCS) $(LFLAGS) $(LIBS)
 
 clean:
-	$(RM) *.o *~  a.out
+	$(RM) *.o *~  a.out test_server
