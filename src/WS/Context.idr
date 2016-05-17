@@ -9,8 +9,13 @@ import CFFI
 
 %include C "lws.h"
 
+private
 string_to_c : String -> IO Ptr
 string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
+
+private
+string_from_c : Ptr -> IO String
+string_from_c str = foreign FFI_C "make_string" (Ptr -> IO String) str
 
 ||| Format of the server's connection information
 |||
@@ -338,4 +343,12 @@ create_context (Make_context_info info) = do
 lws_context_destroy : (context : Context) -> IO ()
 lws_context_destroy (Make_context context) = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context
 
+lws_get_context : (wsi : Ptr) -> IO Context
+lws_get_context wsi = do
+  ctx <-  foreign FFI_C "lws_get_context" (Ptr -> IO Ptr) wsi
+  pure $ Make_context ctx
 
+lws_canonical_hostname : Context -> IO String
+lws_canonical_hostname ctx = do 
+  str <- foreign FFI_C "lws_canonical_hostname" (Ptr -> IO Ptr) (unwrap_context ctx)
+  string_from_c str

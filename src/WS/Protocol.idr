@@ -195,7 +195,13 @@ add_protocol_handler (Make_protocols_array array) size slot name handler data_si
   poke PTR (user_field struct) user
 
 export
-lws_protocol_get : (wsi : Ptr) -> IO Protocols_array
-lws_protocol_get wsi = do
-  array <- foreign FFI_C "lws_protocol_get" (Ptr -> IO Ptr) wsi
+lws_get_protocol : (wsi : Ptr) -> IO Protocols_array
+lws_get_protocol wsi = do
+  array <- foreign FFI_C "lws_get_protocol" (Ptr -> IO Ptr) wsi
   pure $ Make_protocols_array array
+
+export
+lws_callback_on_writeable_all_protocol : (wsi : Ptr) -> (array : Protocols_array) -> IO Int
+lws_callback_on_writeable_all_protocol wsi array =
+  foreign FFI_C "lws_callback_on_writeable_all_protocol" (Ptr -> Ptr -> IO Int) wsi (unwrap_protocols_array array) 
+

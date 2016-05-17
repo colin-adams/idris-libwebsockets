@@ -68,8 +68,8 @@ uv_timer_stop : (handle : Ptr) -> IO Int
 uv_timer_stop handle = foreign FFI_C "uv_timer_stop" (Ptr -> IO Int) handle
 
 export
-lws_uv_getloop : (wsi : Ptr) -> (tsi : Int) -> IO Ptr
-lws_uv_getloop wsi tsi = foreign FFI_C "lws_uv_getloop" (Ptr -> Int -> IO Ptr) wsi tsi
+lws_uv_getloop : (context : Context) -> (tsi : Int) -> IO Ptr
+lws_uv_getloop ctx tsi = foreign FFI_C "lws_uv_getloop" (Ptr -> Int -> IO Ptr) (unwrap_context ctx) tsi
 
 ||| Initialize the handle.
 export

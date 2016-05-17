@@ -20,21 +20,17 @@ import CFFI
 string_from_c : Ptr -> IO String
 string_from_c str = foreign FFI_C "make_string" (Ptr -> IO String) str
 
-print_pointer : String -> Ptr -> IO ()
-print_pointer name pointer =
-  foreign FFI_C "print_pointer" (String -> Ptr -> IO ()) name pointer
-  
-export
-dumb_increment_protocol_name : String
-dumb_increment_protocol_name = "dumb-increment-protocol"
+string_to_c : String -> IO Ptr
+string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 
-export
-dumb_increment_data_size : Bits64
-dumb_increment_data_size = 4
+protocol_name : String
+protocol_name = "dumb-increment-protocol"
 
-export
-dumb_increment_rx_buffer_size : Bits64
-dumb_increment_rx_buffer_size = 10
+data_size : Bits64
+data_size = 4
+
+rx_buffer_size : Bits64
+rx_buffer_size = 10
 
 uv_timer_t_size : IO Bits64
 uv_timer_t_size = foreign FFI_C "uv_timer_t_size" (IO Bits64)
@@ -116,9 +112,6 @@ receive_request wsi user inp len = do
       pure FAIL
     else pure OK
 
-lws_get_context : (wsi : Ptr) -> IO Ptr
-lws_get_context wsi = foreign FFI_C "lws_get_context" (Ptr -> IO Ptr) wsi
-
 lws_callback_on_writable_all_protocol_vhost : Ptr -> Ptr -> IO Int
 lws_callback_on_writable_all_protocol_vhost vhost protocols =
   foreign FFI_C "lws_callback_on_writable_all_protocol_vhost" (Ptr -> Ptr -> IO Int) vhost protocols
@@ -142,12 +135,12 @@ uv_timeout_cb_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Ptr -> ()) -> IO Ptr)
 init_protocol : (wsi : Ptr) -> IO Int
 init_protocol wsi = do
   vh   <- lws_vhost_get wsi
-  prot <- lws_protocol_get wsi
+  prot <- lws_get_protocol wsi
   vhd  <- lws_protocol_vh_priv_zalloc vh prot 176 -- = hand calculation of STRUCT - 152 + 3 x 64-bit pointers
   ctx  <- lws_get_context wsi
   sz   <- uv_timer_t_size
   let size = prim__truncB64_Int sz
-  poke PTR (context_field vhd) ctx
+  poke PTR (context_field vhd) (unwrap_context ctx)
   poke PTR (protocols_field vhd) (unwrap_protocols_array prot)
   poke PTR (vhost_field vhd) (unwrap_vhost vh)
   loop <- lws_uv_getloop ctx 0
@@ -158,7 +151,7 @@ init_protocol wsi = do
 destroy_protocol : (wsi : Ptr) -> IO Int
 destroy_protocol wsi = do
   vh   <- lws_vhost_get wsi
-  prot <- lws_protocol_get wsi
+  prot <- lws_get_protocol wsi
   vhd  <- lws_protocol_vh_priv_get vh prot
   if vhd == null then do
     pure OK
@@ -194,11 +187,11 @@ init_dumb_increment_protocol context caps = unsafePerformIO $ do
   magic <- api_magic caps
   if magic /= LWS_PLUGIN_API_MAGIC then do
     lwsl_err $ "Plugin API " ++ show (LWS_PLUGIN_API_MAGIC) ++ ", library API " ++ (show magic)
-    return FAIL
+    return 1
   else do
     array <- allocate_protocols_array 1
-    add_protocol_handler array 1 0 dumb_increment_protocol_name dumb_increment_wrapper dumb_increment_data_size 
-      dumb_increment_rx_buffer_size 0 null
+    add_protocol_handler array 1 0 protocol_name dumb_increment_wrapper data_size 
+      rx_buffer_size 0 null
     set_capabilities_protocols caps array 1
     set_capabilities_extensions caps null 0
     return OK

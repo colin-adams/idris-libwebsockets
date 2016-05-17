@@ -23,6 +23,9 @@ import System
 %link C "test_server.o"
 %link C "/usr/local/lib/libwebsockets.so"
 
+string_to_c : String -> IO Ptr
+string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
+
 abort : IO ()
 abort = foreign FFI_C "abort" (IO ())
 
@@ -270,7 +273,7 @@ partial
 plugins_directory_list : IO Ptr
 plugins_directory_list = do
   let array = ARRAY 2 PTR
-  let dir = "./plugins/" -- local_resource_path ++ "/plugins/"
+  let dir = "./plugins" -- local_resource_path ++ "/plugins"
   arr <- alloc array
   str <- string_to_c dir
   first_fld <- pure $ (array#0)
