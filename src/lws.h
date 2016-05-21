@@ -1,9 +1,8 @@
 /*
-  C declarations for libebsockets wrapper
+  C declarations for libwebsockets wrapper
 */
 #include <string.h>
 #include <libwebsockets.h>
-
 
 char * string_to_c (char * str) {
   char * dest;
@@ -44,4 +43,3 @@ size_t uv_timer_t_size ()
 {
   return sizeof(uv_timer_t);
 }
-

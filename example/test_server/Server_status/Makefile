@@ -17,4 +17,7 @@ status.o : Server_status.idr
 	IDRIS_CFLAGS="-I ../../../src" idris -p libwebsockets -p contrib -p posix Server_status.idr --interface -o status.o
 
 clean:
-	$(RM) *.ibc *.so *.o *~  a.out
+	$(RM) *.ibc *.o *~ exports.h a.out
+
+clobber: clean
+	$(RM) *.so

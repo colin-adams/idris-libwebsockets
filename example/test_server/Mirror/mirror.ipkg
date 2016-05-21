@@ -1,0 +1,3 @@
+-- dummy ipkg - for emacs only
+
+pkgs = contrib,libwebsockets

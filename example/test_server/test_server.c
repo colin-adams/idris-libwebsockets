@@ -2,6 +2,11 @@
 
 int close_testing_flag;
 
+size_t LWS_PREfix ()
+{
+  return LWS_PRE;
+}
+
 void * transmission_buffer (unsigned int size)
 {
   //printf ("LWS_PRE is %d\n", LWS_PRE);
@@ -54,3 +59,5 @@ void * per_vhost_data__dumb_increment_from_timeout_watcher (uv_timer_t *tw)
 	     struct per_vhost_data__dumb_increment, timeout_watcher);
   return vhd;
 }
+
+

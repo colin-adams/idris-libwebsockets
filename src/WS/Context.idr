@@ -352,3 +352,15 @@ lws_canonical_hostname : Context -> IO String
 lws_canonical_hostname ctx = do 
   str <- foreign FFI_C "lws_canonical_hostname" (Ptr -> IO Ptr) (unwrap_context ctx)
   string_from_c str
+
+lws_rx_flow_allow_all_protocol : (ctx : Context) -> (protocols : Protocols_array) -> IO ()
+lws_rx_flow_allow_all_protocol ctx prots =
+  foreign FFI_C "lws_rx_flow_allow_all_protocol" (Ptr -> Ptr -> IO ()) (unwrap_context ctx) (unwrap_protocols_array prots)
+
+lws_rx_flow_control :  (wsi : Ptr) -> (enable : Int) -> IO Int
+lws_rx_flow_control wsi enable =
+  foreign FFI_C "lws_rx_flow_control" (Ptr -> Int -> IO Int) wsi enable
+
+lws_callback_on_writable_all_protocol : (ctx : Context) -> (array : Protocols_array) -> IO Int
+lws_callback_on_writable_all_protocol ctx array =
+  foreign FFI_C "lws_callback_on_writable_all_protocol" (Ptr -> Ptr -> IO Int) (unwrap_context ctx) (unwrap_protocols_array array) 

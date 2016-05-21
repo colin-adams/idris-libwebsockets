@@ -91,6 +91,6 @@ lws_protocol_vh_priv_get vhost protocols =
   foreign FFI_C "lws_protocol_vh_priv_get" (Ptr -> Ptr -> IO Ptr) (unwrap_vhost vhost) (unwrap_protocols_array protocols)
 
 export 
-lws_callback_on_writeable_all_protocol_vhost : Ptr -> Ptr -> IO Int
-lws_callback_on_writeable_all_protocol_vhost vh prots =
-  foreign FFI_C "lws_callback_on_writeable_all_protocol_vhost" (Ptr -> Ptr -> IO Int) vh prots
+lws_callback_on_writable_all_protocol_vhost : Ptr -> Ptr -> IO Int
+lws_callback_on_writable_all_protocol_vhost vh prots =
+  foreign FFI_C "lws_callback_on_writable_all_protocol_vhost" (Ptr -> Ptr -> IO Int) vh prots

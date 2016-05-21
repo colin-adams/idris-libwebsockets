@@ -112,10 +112,6 @@ receive_request wsi user inp len = do
       pure FAIL
     else pure OK
 
-lws_callback_on_writable_all_protocol_vhost : Ptr -> Ptr -> IO Int
-lws_callback_on_writable_all_protocol_vhost vhost protocols =
-  foreign FFI_C "lws_callback_on_writable_all_protocol_vhost" (Ptr -> Ptr -> IO Int) vhost protocols
-
 per_vhost_data__dumb_increment_from_timeout_watcher : Ptr -> IO Ptr
 per_vhost_data__dumb_increment_from_timeout_watcher tw =
   foreign FFI_C "per_vhost_data__dumb_increment_from_timeout_watcher" (Ptr -> IO Ptr) tw

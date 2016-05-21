@@ -200,8 +200,3 @@ lws_get_protocol wsi = do
   array <- foreign FFI_C "lws_get_protocol" (Ptr -> IO Ptr) wsi
   pure $ Make_protocols_array array
 
-export
-lws_callback_on_writeable_all_protocol : (wsi : Ptr) -> (array : Protocols_array) -> IO Int
-lws_callback_on_writeable_all_protocol wsi array =
-  foreign FFI_C "lws_callback_on_writeable_all_protocol" (Ptr -> Ptr -> IO Int) wsi (unwrap_protocols_array array) 
-

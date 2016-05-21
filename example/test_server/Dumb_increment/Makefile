@@ -16,4 +16,7 @@ dumb.o : Dumb_increment.idr
 	IDRIS_CFLAGS="-I ../../../src" idris -p libwebsockets -p contrib -p posix Dumb_increment.idr --interface -o dumb.o
 
 clean:
-	$(RM) *.ibc *.so *.o *.h *~  a.out
+	$(RM) *.ibc *.o *~ exports.h a.out
+
+clobber: clean
+	$(RM) *.so

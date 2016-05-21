@@ -117,3 +117,12 @@ LWS_WRITE_NO_FIN = 0x40
 ||| decode the content if used
 LWS_WRITE_CLIENT_IGNORE_XOR_MASK : Bits8
 LWS_WRITE_CLIENT_IGNORE_XOR_MASK = 0x80
+
+lws_send_pipe_choked : (wsi : Ptr) -> IO Int
+lws_send_pipe_choked wsi =
+  foreign FFI_C "lws_send_pipe_choked" (Ptr -> IO Int) wsi
+
+lws_callback_on_writable : (wsi : Ptr) -> IO Int
+lws_callback_on_writable wsi =
+  foreign FFI_C "lws_callback_on_writable" (Ptr -> IO Int) wsi
+  
