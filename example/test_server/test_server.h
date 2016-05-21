@@ -21,3 +21,6 @@ void print_pointer (const char * nm, const void * ptr);
 
 void * per_vhost_data__dumb_increment_from_timeout_watcher (uv_timer_t *tw);
 
+void * bytes_on_from (size_t count, void * ptr);
+
+size_t pointer_difference (void *p1, void * p2);

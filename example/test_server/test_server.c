@@ -60,4 +60,12 @@ void * per_vhost_data__dumb_increment_from_timeout_watcher (uv_timer_t *tw)
   return vhd;
 }
 
+void * bytes_on_from (size_t count, void * ptr)
+{
+  return (ptr + count);
+}
 
+size_t pointer_difference (void *p1, void * p2)
+{
+  return (p1 - p2);
+}

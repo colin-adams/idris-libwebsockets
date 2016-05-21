@@ -34,6 +34,9 @@ lws_get_peer_addresses : (wsi : Ptr) -> (fd : Int) -> (name_buffer : Ptr) -> (na
 lws_get_peer_addresses wsi fd name n_len rip rip_len = foreign FFI_C "lws_get_peer_addresses"
   (Ptr -> Int -> Ptr -> Int -> Ptr -> Int -> IO ()) wsi fd name n_len rip rip_len
 
+HTTP_STATUS_OK : Int
+HTTP_STATUS_OK = 200
+
 HTTP_STATUS_BAD_REQUEST : Int
 HTTP_STATUS_BAD_REQUEST = 400
 
@@ -71,6 +74,9 @@ WSI_TOKEN_CONNECTION =  4
 WSI_TOKEN_UPGRADE : Int
 WSI_TOKEN_UPGRADE =  5
 
+WSI_TOKEN_HTTP_CONTENT_TYPE : Int
+WSI_TOKEN_HTTP_CONTENT_TYPE = 28
+
 WSI_TOKEN_HTTP_USER_AGENT : Int
 WSI_TOKEN_HTTP_USER_AGENT = 69  
 
@@ -97,7 +103,7 @@ WSI_TOKEN_HTTP_USER_AGENT = 69
 	WSI_TOKEN_HTTP_AUTHORIZATION				= 25
 	WSI_TOKEN_HTTP_COOKIE					= 26
 	WSI_TOKEN_HTTP_CONTENT_LENGTH				= 27
-	WSI_TOKEN_HTTP_CONTENT_TYPE				= 28
+	
 	WSI_TOKEN_HTTP_DATE					= 29
 	WSI_TOKEN_HTTP_RANGE					= 30
 	WSI_TOKEN_HTTP_REFERER					= 31
@@ -151,3 +157,31 @@ WSI_TOKEN_HTTP_USER_AGENT = 69
 	WSI_TOKEN_HTTP1_0					= 79
 
 -}
+
+lws_http_transaction_completed : (wsi : Ptr) -> IO Int
+lws_http_transaction_completed wsi = foreign FFI_C "lws_http_transaction_completed" (Ptr -> IO Int) wsi
+
+||| Undocumented
+|||
+||| @code - HTTP status code
+||| @p    - pointer to pointer of bytes
+||| @end  - pointer to bytes
+lws_add_http_header_status : (wsi : Ptr) -> (code : Int) -> (p : Ptr) -> (end : Ptr) -> IO Int
+lws_add_http_header_status wsi code p end = 
+  foreign FFI_C "lws_add_http_header_status" (Ptr -> Int -> Ptr -> Ptr -> IO Int) wsi code p end
+
+lws_add_http_header_by_token : (wsi : Ptr) -> (token : Int) -> (value : Ptr) -> (len : Int) ->
+  (p : Ptr) -> (end : Ptr) -> IO Int
+lws_add_http_header_by_token wsi token value len p end =
+  foreign FFI_C "lws_add_http_header_by_token" (Ptr -> Int -> Ptr -> Int -> Ptr -> Ptr -> IO Int)
+    wsi token value len p end
+
+lws_add_http_header_content_length : (wsi : Ptr) -> (content_len : Bits64) ->
+  (p : Ptr) -> (end : Ptr) -> IO Int
+lws_add_http_header_content_length wsi content_len p end = 
+  foreign FFI_C "lws_add_http_header_content_length" (Ptr -> Bits64 -> Ptr -> Ptr -> IO Int)
+    wsi content_len p end
+    
+lws_finalize_http_header : (wsi : Ptr) -> (p : Ptr) -> (end : Ptr) -> IO Int
+lws_finalize_http_header wsi p end = 
+foreign FFI_C "lws_finalize_http_header" (Ptr -> Ptr -> Ptr -> IO Int) wsi p end
