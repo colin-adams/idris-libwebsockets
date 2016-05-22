@@ -1,6 +1,7 @@
 ||| Implementation of libwebsockets post-demo plugin
 module Post
 
+import WS.Wsi
 import WS.Handler
 import WS.Logging
 import WS.Plugin
@@ -72,7 +73,7 @@ result_field user = (per_session_data__post_demo#1) user
 len_field : Ptr -> CPtr
 len_field user = (per_session_data__post_demo#2) user
  
-try_to_reuse : (wsi : Ptr) -> IO Int
+try_to_reuse : (wsi : Wsi) -> IO Int
 try_to_reuse wsi = do
   comp <- lws_http_transaction_completed wsi
   if comp /= 0 then
@@ -80,7 +81,8 @@ try_to_reuse wsi = do
   else pure OK
   
 post_demo_handler : Callback_handler
-post_demo_handler wsi reason user inp len = unsafePerformIO $ do
+post_demo_handler wsip reason user inp len = unsafePerformIO $ do
+  let wsi = wrap_wsi wsip
   if reason == LWS_CALLBACK_HTTP_BODY then do
     lwsl_debug $ "LWS_CALLBACK_HTTP_BODY: len " ++ (show len) ++ "\n"
     _ <- strncpy (post_field user) inp 255

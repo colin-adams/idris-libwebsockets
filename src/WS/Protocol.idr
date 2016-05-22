@@ -3,6 +3,7 @@
 module Protocol
 
 import Data.Fin
+import WS.Wsi
 import WS.Handler
 import CFFI
 
@@ -195,8 +196,8 @@ add_protocol_handler (Make_protocols_array array) size slot name handler data_si
   poke PTR (user_field struct) user
 
 export
-lws_get_protocol : (wsi : Ptr) -> IO Protocols_array
+lws_get_protocol : (wsi : Wsi) -> IO Protocols_array
 lws_get_protocol wsi = do
-  array <- foreign FFI_C "lws_get_protocol" (Ptr -> IO Ptr) wsi
+  array <- foreign FFI_C "lws_get_protocol" (Ptr -> IO Ptr) (unwrap_wsi wsi)
   pure $ Make_protocols_array array
 

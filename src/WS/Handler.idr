@@ -10,14 +10,14 @@ module Handler
 
 
 |||
-||| wsi    - opaque websocket instance pointer
+||| wsip   - opaque websocket instance pointer
 ||| reason - reason for the call
 ||| user   - Pointer to per-session user data allocated by library
 ||| inp     - Pointer used for some callback reasons
 ||| len    - Length set for some callback reasons
 public export
 Callback_handler : Type
-Callback_handler = (wsi : Ptr) -> (reason : Int) -> (user : Ptr) -> (inp : Ptr) -> (len : Bits64) -> Int
+Callback_handler = (wsip : Ptr) -> (reason : Int) -> (user : Ptr) -> (inp : Ptr) -> (len : Bits64) -> Int
 
 -- return codes:
 

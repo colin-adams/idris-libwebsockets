@@ -1,6 +1,7 @@
 ||| Implementation of the dumb increment protocol
 module Dumb_increment
 
+import WS.Wsi
 import WS.Handler
 import WS.Logging
 import WS.Write
@@ -71,7 +72,7 @@ is_close_testing = foreign FFI_C "is_close_testing" (IO Int)
 open_testing : IO ()
 open_testing = foreign FFI_C "open_testing" (IO ())
 
-write_response : (wsi : Ptr) -> (user : Ptr) -> IO Int
+write_response : (wsi : Wsi) -> (user : Ptr) -> IO Int
 write_response wsi user = do
   current_count <- peek I32 ((per_session_data_structure#0) user)
   poke I32 ((per_session_data_structure#0) user) (current_count + 1)
@@ -94,7 +95,7 @@ write_response wsi user = do
     else do
       pure OK
 
-receive_request : (wsi : Ptr) -> (user : Ptr) -> (inp : Ptr) -> (len : Bits64) -> IO Int
+receive_request : (wsi : Wsi) -> (user : Ptr) -> (inp : Ptr) -> (len : Bits64) -> IO Int
 receive_request wsi user inp len = do
   if len < 6 then
     pure OK
@@ -128,9 +129,9 @@ uv_timeout_cb_wrapper : IO Ptr
 uv_timeout_cb_wrapper = foreign FFI_C "%wrapper" (CFnPtr (Ptr -> ()) -> IO Ptr)
   (MkCFnPtr (uv_timeout_cb_dumb_increment))
 
-init_protocol : (wsi : Ptr) -> IO Int
+init_protocol : (wsi : Wsi) -> IO Int
 init_protocol wsi = do
-  vh   <- lws_vhost_get wsi
+  vh   <- lws_get_vhost wsi
   prot <- lws_get_protocol wsi
   vhd  <- lws_protocol_vh_priv_zalloc vh prot 176 -- = hand calculation of STRUCT - 152 + 3 x 64-bit pointers
   ctx  <- lws_get_context wsi
@@ -144,9 +145,9 @@ init_protocol wsi = do
   uv_timer_start vhd !(uv_timeout_cb_wrapper) 50 50
   pure OK
   
-destroy_protocol : (wsi : Ptr) -> IO Int
+destroy_protocol : (wsi : Wsi) -> IO Int
 destroy_protocol wsi = do
-  vh   <- lws_vhost_get wsi
+  vh   <- lws_get_vhost wsi
   prot <- lws_get_protocol wsi
   vhd  <- lws_protocol_vh_priv_get vh prot
   if vhd == null then do
@@ -156,7 +157,8 @@ destroy_protocol wsi = do
     pure OK
 
 dumb_increment_handler : Callback_handler
-dumb_increment_handler wsi reason user inp len = unsafePerformIO $ do
+dumb_increment_handler wsip reason user inp len = unsafePerformIO $ do
+  let wsi = wrap_wsi wsip
   if reason == LWS_CALLBACK_PROTOCOL_INIT then do
     init_protocol wsi
   else do

@@ -1,6 +1,7 @@
 ||| Functions that manipulate the libwebsockets context
 module Context
 
+import WS.Wsi
 import WS.Extension
 import WS.Protocol
 import CFFI
@@ -343,9 +344,9 @@ create_context (Make_context_info info) = do
 lws_context_destroy : (context : Context) -> IO ()
 lws_context_destroy (Make_context context) = foreign FFI_C "lws_context_destroy" (Ptr -> IO ()) context
 
-lws_get_context : (wsi : Ptr) -> IO Context
+lws_get_context : (wsi : Wsi) -> IO Context
 lws_get_context wsi = do
-  ctx <-  foreign FFI_C "lws_get_context" (Ptr -> IO Ptr) wsi
+  ctx <-  foreign FFI_C "lws_get_context" (Ptr -> IO Ptr) (unwrap_wsi wsi)
   pure $ Make_context ctx
 
 lws_canonical_hostname : Context -> IO String
@@ -357,9 +358,9 @@ lws_rx_flow_allow_all_protocol : (ctx : Context) -> (protocols : Protocols_array
 lws_rx_flow_allow_all_protocol ctx prots =
   foreign FFI_C "lws_rx_flow_allow_all_protocol" (Ptr -> Ptr -> IO ()) (unwrap_context ctx) (unwrap_protocols_array prots)
 
-lws_rx_flow_control :  (wsi : Ptr) -> (enable : Int) -> IO Int
+lws_rx_flow_control :  (wsi : Wsi) -> (enable : Int) -> IO Int
 lws_rx_flow_control wsi enable =
-  foreign FFI_C "lws_rx_flow_control" (Ptr -> Int -> IO Int) wsi enable
+  foreign FFI_C "lws_rx_flow_control" (Ptr -> Int -> IO Int) (unwrap_wsi wsi) enable
 
 lws_callback_on_writable_all_protocol : (ctx : Context) -> (array : Protocols_array) -> IO Int
 lws_callback_on_writable_all_protocol ctx array =

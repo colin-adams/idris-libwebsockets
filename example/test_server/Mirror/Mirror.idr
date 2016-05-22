@@ -1,6 +1,7 @@
 ||| Implementation of the lws_mirror protocol
 module Mirror
 
+import WS.Wsi
 import WS.Handler
 import WS.Logging
 import WS.Plugin
@@ -78,7 +79,7 @@ last_but_one = MAX_MESSAGE_QUEUE - 2
 last_but_fourteen : Int
 last_but_fourteen = MAX_MESSAGE_QUEUE - 15
 
-write_response : (wsi : Ptr) -> (user : Ptr) -> (vhost : Ptr) -> IO Int
+write_response : (wsi : Wsi) -> (user : Ptr) -> (vhost : Ptr) -> IO Int
 write_response wsi user vhost = do
   loop
  where
@@ -118,13 +119,13 @@ write_response wsi user vhost = do
            pure OK
          else loop
  
-receive_done :  (wsi : Ptr) -> IO Int
+receive_done :  (wsi : Wsi) -> IO Int
 receive_done wsi = do
   ctx <- lws_get_context wsi
   prots <- lws_get_protocol wsi
   lws_callback_on_writable_all_protocol ctx prots
     
-choke :  (wsi : Ptr) -> IO Int
+choke :  (wsi : Wsi) -> IO Int
 choke wsi = do
   lwsl_debug $ "LWS_CALLBACK_RECEIVE: throttling \n" -- ++ show wsi
   lws_rx_flow_control wsi 0
@@ -148,7 +149,7 @@ reallocate_head vhost hd inp len = do
   memcpy !(transmission_buffer_start new_payload) inp len
   poke I64 (len_field msg) len
   
-receive_request : (wsi : Ptr) -> (user : Ptr) -> (vhost : Ptr) -> (inp : Ptr) -> (len : Bits64) -> IO Int
+receive_request : (wsi : Wsi) -> (user : Ptr) -> (vhost : Ptr) -> (inp : Ptr) -> (len : Bits64) -> IO Int
 receive_request wsi user vhost inp len = do
   hd <- peek I32 (ringbuffer_head_field vhost)
   tl <- peek I32 (ringbuffer_tail_field user)
@@ -169,8 +170,9 @@ receive_request wsi user vhost inp len = do
       choke wsi
     
 lws_mirror_handler : Callback_handler
-lws_mirror_handler wsi reason user inp len = unsafePerformIO $ do
-  vh    <- lws_vhost_get wsi
+lws_mirror_handler wsip reason user inp len = unsafePerformIO $ do
+  let wsi = (wrap_wsi wsip)
+  vh    <- lws_get_vhost wsi
   prots <- lws_get_protocol wsi
   if reason == LWS_CALLBACK_PROTOCOL_INIT then do
     buf <- lws_protocol_vh_priv_zalloc vh prots vhost_data_size
@@ -181,7 +183,7 @@ lws_mirror_handler wsi reason user inp len = unsafePerformIO $ do
       v <- lws_protocol_vh_priv_get vh prots
       hd <- peek I32 (ringbuffer_head_field v)
       poke I32 (ringbuffer_tail_field user) hd
-      poke PTR (wsi_field user) wsi
+      poke PTR (wsi_field user) wsip
       pure OK
     else do
       if reason == LWS_CALLBACK_PROTOCOL_DESTROY then do

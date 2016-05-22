@@ -1,6 +1,7 @@
 ||| Virtual host functions and protocol options
 module Vhost
 
+import WS.Wsi
 import WS.Protocol
 import CFFI
 
@@ -65,9 +66,9 @@ unwrap_vhost : Vhost -> Ptr
 unwrap_vhost (Make_vhost p) = p
 
 export
-lws_vhost_get : (wsi : Ptr) -> IO Vhost
-lws_vhost_get wsi = do
-  vh <- foreign FFI_C "lws_vhost_get" (Ptr -> IO Ptr) wsi
+lws_get_vhost : (wsi : Wsi) -> IO Vhost
+lws_get_vhost wsi = do
+  vh <- foreign FFI_C "lws_get_vhost" (Ptr -> IO Ptr) (unwrap_wsi wsi)
   pure $ Make_vhost vh
 
 ||| Allocate protocol virtual-host private data for @protocols in @vhost

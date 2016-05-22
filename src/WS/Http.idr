@@ -1,6 +1,7 @@
 ||| C routines used for http handlers
 module Http
 
+import WS.Wsi
 import CFFI
 
 %access export
@@ -13,26 +14,26 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 
 ||| Returns True if the HTTP connection must close now, or
 ||| Returns False and resets connection to wait for new HTTP header / transaction if possible
-lws_transaction_completed : (wsi : Ptr) -> IO Bool
+lws_transaction_completed : (wsi : Wsi) -> IO Bool
 lws_transaction_completed wsi = do
-  compl <- foreign FFI_C "lws_transaction_completed" (Ptr -> IO Int) wsi
+  compl <- foreign FFI_C "lws_transaction_completed" (Ptr -> IO Int) (unwrap_wsi wsi)
   if compl == 0 then
     pure False
   else
     pure True
 
 ||| Socket file descriptor
-lws_get_socket_fd : (wsi : Ptr) -> IO Int
-lws_get_socket_fd wsi = foreign FFI_C "lws_get_socket_fd" (Ptr -> IO Int) wsi
+lws_get_socket_fd : (wsi : Wsi) -> IO Int
+lws_get_socket_fd wsi = foreign FFI_C "lws_get_socket_fd" (Ptr -> IO Int) (unwrap_wsi wsi)
 
 ||| Get client address information
 |||
 ||| @name_buffer - Buffer to take client address name
 ||| @rip         - Buffer to take client address IP dotted quad
-lws_get_peer_addresses : (wsi : Ptr) -> (fd : Int) -> (name_buffer : Ptr) -> (name_len : Int) -> 
+lws_get_peer_addresses : (wsi : Wsi) -> (fd : Int) -> (name_buffer : Ptr) -> (name_len : Int) -> 
   (rip : Ptr) -> (rip_len : Int) -> IO ()
 lws_get_peer_addresses wsi fd name n_len rip rip_len = foreign FFI_C "lws_get_peer_addresses"
-  (Ptr -> Int -> Ptr -> Int -> Ptr -> Int -> IO ()) wsi fd name n_len rip rip_len
+  (Ptr -> Int -> Ptr -> Int -> Ptr -> Int -> IO ()) (unwrap_wsi wsi) fd name n_len rip rip_len
 
 HTTP_STATUS_OK : Int
 HTTP_STATUS_OK = 200
@@ -40,21 +41,21 @@ HTTP_STATUS_OK = 200
 HTTP_STATUS_BAD_REQUEST : Int
 HTTP_STATUS_BAD_REQUEST = 400
 
-lws_return_http_status : (wsi : Ptr) -> (status_code : Int) -> (body : String) -> IO Int
+lws_return_http_status : (wsi : Wsi) -> (status_code : Int) -> (body : String) -> IO Int
 lws_return_http_status wsi status_code body = do
   case length body of
-    Z => foreign FFI_C "lws_return_http_status" (Ptr -> Int -> Ptr -> IO Int) wsi status_code null
-    _ => foreign FFI_C "lws_return_http_status" (Ptr -> Int -> Ptr -> IO Int) wsi status_code !(string_to_c body)
+    Z => foreign FFI_C "lws_return_http_status" (Ptr -> Int -> Ptr -> IO Int) (unwrap_wsi wsi) status_code null
+    _ => foreign FFI_C "lws_return_http_status" (Ptr -> Int -> Ptr -> IO Int) (unwrap_wsi wsi) status_code !(string_to_c body)
 
-lws_get_child : (wsi : Ptr) -> IO Ptr
-lws_get_child wsi = foreign FFI_C "lws_get_child" (Ptr -> IO Ptr) wsi
+lws_get_child : (wsi : Wsi) -> IO Ptr
+lws_get_child wsi = foreign FFI_C "lws_get_child" (Ptr -> IO Ptr) (unwrap_wsi wsi)
 
 ||| Copy the whole, aggregated @hdr to @dest
 |||
 ||| @hdr - header to copy
-lws_hdr_copy :  (wsi : Ptr) -> (dest : Ptr) -> (len : Int) -> (hdr : Int) -> IO Int
+lws_hdr_copy :  (wsi : Wsi) -> (dest : Ptr) -> (len : Int) -> (hdr : Int) -> IO Int
 lws_hdr_copy wsi dest len hdr =
-  foreign FFI_C "lws_hdr_copy" (Ptr -> Ptr -> Int -> Int -> IO Int) wsi dest len hdr
+  foreign FFI_C "lws_hdr_copy" (Ptr -> Ptr -> Int -> Int -> IO Int) (unwrap_wsi wsi) dest len hdr
 
 WSI_TOKEN_GET_URI : Int
 WSI_TOKEN_GET_URI =  0
@@ -158,30 +159,30 @@ WSI_TOKEN_HTTP_USER_AGENT = 69
 
 -}
 
-lws_http_transaction_completed : (wsi : Ptr) -> IO Int
-lws_http_transaction_completed wsi = foreign FFI_C "lws_http_transaction_completed" (Ptr -> IO Int) wsi
+lws_http_transaction_completed : (wsi : Wsi) -> IO Int
+lws_http_transaction_completed wsi = foreign FFI_C "lws_http_transaction_completed" (Ptr -> IO Int) (unwrap_wsi wsi)
 
 ||| Undocumented
 |||
 ||| @code - HTTP status code
 ||| @p    - pointer to pointer of bytes
 ||| @end  - pointer to bytes
-lws_add_http_header_status : (wsi : Ptr) -> (code : Int) -> (p : Ptr) -> (end : Ptr) -> IO Int
+lws_add_http_header_status : (wsi : Wsi) -> (code : Int) -> (p : Ptr) -> (end : Ptr) -> IO Int
 lws_add_http_header_status wsi code p end = 
-  foreign FFI_C "lws_add_http_header_status" (Ptr -> Int -> Ptr -> Ptr -> IO Int) wsi code p end
+  foreign FFI_C "lws_add_http_header_status" (Ptr -> Int -> Ptr -> Ptr -> IO Int) (unwrap_wsi wsi) code p end
 
-lws_add_http_header_by_token : (wsi : Ptr) -> (token : Int) -> (value : Ptr) -> (len : Int) ->
+lws_add_http_header_by_token : (wsi : Wsi) -> (token : Int) -> (value : Ptr) -> (len : Int) ->
   (p : Ptr) -> (end : Ptr) -> IO Int
 lws_add_http_header_by_token wsi token value len p end =
   foreign FFI_C "lws_add_http_header_by_token" (Ptr -> Int -> Ptr -> Int -> Ptr -> Ptr -> IO Int)
-    wsi token value len p end
+    (unwrap_wsi wsi) token value len p end
 
-lws_add_http_header_content_length : (wsi : Ptr) -> (content_len : Bits64) ->
+lws_add_http_header_content_length : (wsi : Wsi) -> (content_len : Bits64) ->
   (p : Ptr) -> (end : Ptr) -> IO Int
 lws_add_http_header_content_length wsi content_len p end = 
   foreign FFI_C "lws_add_http_header_content_length" (Ptr -> Bits64 -> Ptr -> Ptr -> IO Int)
-    wsi content_len p end
+    (unwrap_wsi wsi) content_len p end
     
-lws_finalize_http_header : (wsi : Ptr) -> (p : Ptr) -> (end : Ptr) -> IO Int
+lws_finalize_http_header : (wsi : Wsi) -> (p : Ptr) -> (end : Ptr) -> IO Int
 lws_finalize_http_header wsi p end = 
-foreign FFI_C "lws_finalize_http_header" (Ptr -> Ptr -> Ptr -> IO Int) wsi p end
+foreign FFI_C "lws_finalize_http_header" (Ptr -> Ptr -> Ptr -> IO Int) (unwrap_wsi wsi) p end

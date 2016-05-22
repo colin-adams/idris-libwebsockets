@@ -1,6 +1,7 @@
 ||| Sending data with the websockets protocols
 module Write
 
+import WS.Wsi
 import CFFI
 
 %access export
@@ -16,8 +17,8 @@ import CFFI
 ||| @status:	A valid close status from websocket standard
 ||| @buf:	Null or buffer containing up to 124 bytes of auxiliary data
 ||| @len:	Length of data in @buf to send
-lws_close_reason : (wsi : Ptr) -> (status : Bits32) -> (buf : Ptr) -> (len : Bits64) -> IO ()
-lws_close_reason wsi status buf len = foreign FFI_C "lws_close_reason" (Ptr -> Bits32 -> Ptr -> Bits64 -> IO ()) wsi status buf len
+lws_close_reason : (wsi : Wsi) -> (status : Bits32) -> (buf : Ptr) -> (len : Bits64) -> IO ()
+lws_close_reason wsi status buf len = foreign FFI_C "lws_close_reason" (Ptr -> Bits32 -> Ptr -> Bits64 -> IO ()) (unwrap_wsi wsi) status buf len
 
 -- Close reasons follow
 
@@ -73,8 +74,8 @@ LWS_CLOSE_STATUS_NOSTATUS_CONTEXT_DESTROY = 9999
 ||| @len      - Number of bytes to write
 ||| @protocol - How the data is interpreted
 ||| Return value is the number of bytes written
-lws_write : (wsi : Ptr) -> (buf : Ptr) -> (len : Bits64) -> (protocol : Bits8) -> IO Int
-lws_write wsi buf len protocol = foreign FFI_C "lws_write" (Ptr -> Ptr -> Bits64 -> Bits8 -> IO Int) wsi buf len protocol
+lws_write : (wsi : Wsi) -> (buf : Ptr) -> (len : Bits64) -> (protocol : Bits8) -> IO Int
+lws_write wsi buf len protocol = foreign FFI_C "lws_write" (Ptr -> Ptr -> Bits64 -> Bits8 -> IO Int) (unwrap_wsi wsi) buf len protocol
 
 -- Values for protocol follow
 
@@ -118,11 +119,11 @@ LWS_WRITE_NO_FIN = 0x40
 LWS_WRITE_CLIENT_IGNORE_XOR_MASK : Bits8
 LWS_WRITE_CLIENT_IGNORE_XOR_MASK = 0x80
 
-lws_send_pipe_choked : (wsi : Ptr) -> IO Int
+lws_send_pipe_choked : (wsi : Wsi) -> IO Int
 lws_send_pipe_choked wsi =
-  foreign FFI_C "lws_send_pipe_choked" (Ptr -> IO Int) wsi
+  foreign FFI_C "lws_send_pipe_choked" (Ptr -> IO Int) (unwrap_wsi wsi)
 
-lws_callback_on_writable : (wsi : Ptr) -> IO Int
+lws_callback_on_writable : (wsi : Wsi) -> IO Int
 lws_callback_on_writable wsi =
-  foreign FFI_C "lws_callback_on_writable" (Ptr -> IO Int) wsi
+  foreign FFI_C "lws_callback_on_writable" (Ptr -> IO Int) (unwrap_wsi wsi)
   

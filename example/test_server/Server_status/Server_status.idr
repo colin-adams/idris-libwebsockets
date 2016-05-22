@@ -1,6 +1,7 @@
 ||| Implementation of the lws_status protocol
 module Server_status
 
+import WS.Wsi
 import WS.Handler
 import WS.Logging
 import WS.Plugin
@@ -72,7 +73,7 @@ data_size = 832
 rx_buffer_size : Bits64
 rx_buffer_size = 128
 
-init_protocol : (wsi : Ptr) -> IO Int
+init_protocol : (wsi : Wsi) -> IO Int
 init_protocol wsi = do
   ver <- lws_get_library_version
   ctx <- lws_get_context wsi
@@ -80,11 +81,11 @@ init_protocol wsi = do
   set_server_info ver nm
   pure OK
 
-update_status : (wsi : Ptr) -> (pss : Ptr) -> IO ()
+update_status : (wsi : Wsi) -> (pss : Ptr) -> IO ()
 update_status wsi pss = 
-  foreign FFI_C "update_status" (Ptr -> Ptr -> IO ()) wsi pss
+  foreign FFI_C "update_status" (Ptr -> Ptr -> IO ()) (unwrap_wsi wsi) pss
 
-establish_session : Ptr -> Ptr -> IO Int
+establish_session : Wsi -> Ptr -> IO Int
 establish_session wsi user = do
   set_last user 0
   set_list user
@@ -102,7 +103,7 @@ establish_session wsi user = do
   update_status wsi user
   pure OK
   
-write_response : (wsi : Ptr) -> (pss : Ptr) -> IO Int
+write_response : (wsi : Wsi) -> (pss : Ptr) -> IO Int
 write_response wsi pss = do
   c <- cache
   buf <- transmission_buffer_start c
@@ -118,7 +119,8 @@ decrement_live_wsi pss =
   foreign FFI_C "decrement_live_wsi" (Ptr -> IO ()) pss
   
 lws_status_handler : Callback_handler
-lws_status_handler wsi reason user inp len = unsafePerformIO $ do
+lws_status_handler wsip reason user inp len = unsafePerformIO $ do
+  let wsi = (wrap_wsi wsip)
   if reason == LWS_CALLBACK_PROTOCOL_INIT then do
     init_protocol wsi
   else do
