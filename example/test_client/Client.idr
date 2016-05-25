@@ -3,6 +3,7 @@ module Main
 import WS.WebSocket
 import IdrisScript
 
+export
 san : String -> String
 san s = 
   if isInfixOf "<" s then
@@ -32,8 +33,8 @@ get_appropriate_ws_url = do
   pure $ pcol ++ u3 ++ "/xxx" -- last bit is for IE 10 workaround
 
 export
-reset : JsFn (() -> JS_IO ())
-reset = jscall "function () {socket_di.send('reset\n')}" (JsFn (() -> JS_IO ()))
+reset : () -> JS_IO ()
+reset = jscall "function () {socket_di.send(\"reset\\n\")()}" (() -> JS_IO ())
 
 set_dumb_increment_callbacks : WebSocket -> JS_IO ()
 set_dumb_increment_callbacks sock = jscall """
@@ -64,11 +65,11 @@ set_dumb_increment_callbacks sock = jscall """
 element_by_id : String -> JS_IO JSRef
 element_by_id id = jscall "document.getElementById(%0)" (String -> JS_IO JSRef) id
 
-add_event_listener : JSRef -> String -> JS_IO (JsFn (() -> JS_IO ())) -> JS_IO ()
+add_event_listener : JSRef -> String -> (() -> JS_IO ()) -> JS_IO ()
 add_event_listener target event action = 
   jscall "%0.addEventListener(%1, %2)" (JSRef -> String -> (JsFn (() -> JS_IO ()
   )) -> JS_IO ()) 
-    target event action
+    target event (MkJsFn action)
 
 --namespace BrowserDetect
 
