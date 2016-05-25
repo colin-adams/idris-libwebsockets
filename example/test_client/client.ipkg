@@ -1,0 +1,11 @@
+package client
+
+modules = Client.idr
+
+main = Client
+
+opts = "--codegen=javascript"
+
+executable = client.js
+
+pkgs = libwebsockets,idrisscript

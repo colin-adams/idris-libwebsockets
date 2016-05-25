@@ -3,6 +3,7 @@
 *.so
 *#
 *~
+*.js
 example/test_server/test_server
 example/test_server/*/exports.h
 

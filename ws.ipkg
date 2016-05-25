@@ -2,10 +2,10 @@ package libwebsockets
 
 sourcedir = src
 
-modules = WS.Wsi, WS.Library, WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon, WS.Extension, WS.Service, WS.Mount, WS.Vhost, WS.Uv, WS.Write, WS.Http, WS.Plugin
+modules = WS.Wsi, WS.Library, WS.Context, WS.Protocol, WS.Handler, WS.Logging, WS.Daemon, WS.Extension, WS.Service, WS.Mount, WS.Vhost, WS.Uv, WS.Write, WS.Http, WS.Plugin, WS.WebSocket
 
 objs = lws.h
 
 libs = websockets
 
-pkgs = contrib, posix
+pkgs = contrib, posix, idrisscript

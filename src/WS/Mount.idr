@@ -16,13 +16,16 @@ string_to_c str = foreign FFI_C "string_to_c" (String -> IO Ptr) str
 ||| origin (String) - path to be mounted, eg, "/var/www/warmcat.com"
 ||| def (String) - default target, eg, "index.html"
 ||| cgienv - pointer to an lws_protocol_vhost_options
+||| extra-mimetypes
+||| interpret
 ||| cgi_timeout
+||| auth mask
 ||| cache_max_age
 ||| cache_reusable, cache_revalidate, cache_intermediaries - 1-bit fields in an I8
 ||| origin_protocol
 ||| mountpoint length
 mount_structure : Composite
-mount_structure = STRUCT [PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I8, I8, I8]
+mount_structure = STRUCT [PTR, PTR, PTR, PTR, PTR, PTR, PTR, PTR, I32, I32, I32, I8, I8, I8]
 
 -- Field indices into mount_structure
 
@@ -39,10 +42,10 @@ default_field : Ptr -> CPtr
 default_field mount = (mount_structure#3) mount
 
 origin_protocol_field : Ptr -> CPtr
-origin_protocol_field mount = (mount_structure#9) mount
+origin_protocol_field mount = (mount_structure#12) mount
 
 mountpoint_length_field : Ptr -> CPtr
-mountpoint_length_field mount = (mount_structure#10) mount
+mountpoint_length_field mount = (mount_structure#13) mount
 
 -- values for origin_protocol field:
 

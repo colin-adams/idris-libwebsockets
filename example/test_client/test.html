@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset=utf-8 http-equiv="Content-Language" content="en"/>
+ <title>Minimal Websocket test app using Idris</title>
+<style type="text/css">
+	span.title { font-size:18pt; font: Arial; font-weight:normal; text-align:center; color:#000000; }
+	.browser { font-size:18pt; font: Arial; font-weight:normal; text-align:center; color:#ffff00; vertical-align:middle; text-align:center; background:#d0b070; padding:12px; -webkit-border-radius:10px; -moz-border-radius:10px; border-radius:10px;}
+	.group2 { vertical-align:middle;
+		text-align:center;
+		background:#f0f0e0; 
+		padding:12px; 
+		-webkit-border-radius:10px; 
+		-moz-border-radius:10px;
+		border-radius:10px; }
+	.explain { vertical-align:middle;
+		text-align:center;
+		background:#f0f0c0; padding:12px;
+		-webkit-border-radius:10px;
+		-moz-border-radius:10px;
+		border-radius:10px;
+		color:#404000; }
+	td.wsstatus { vertical-align:middle; width:200px; height:50px;
+		text-align:center;
+		background:#f0f0c0; padding:6px;
+		-webkit-border-radius:8px;
+		-moz-border-radius:8px;
+		border-radius:8px;
+		color:#404000; }
+	td.l { vertical-align:middle;
+		text-align:center;
+		background:#d0d0b0; 
+		padding:3px; 
+		-webkit-border-radius:3px; 
+		-moz-border-radius:3px;
+		border-radius:3px; }
+	.content { vertical-align:top; text-align:center; background:#fffff0; padding:12px; -webkit-border-radius:10px; -moz-border-radius:10px; border-radius:10px; }
+	.canvas { vertical-align:top; text-align:center; background:#efefd0; padding:12px; -webkit-border-radius:10px; -moz-border-radius:10px; border-radius:10px; }
+.tabs {
+  position: relative;   
+  min-height: 750px; /* This part sucks */
+  clear: both;
+  margin: 25px 0;
+}
+.tab {
+  float: left;
+}
+.tab label {
+  background: #eee; 
+  padding: 10px; 
+  border: 1px solid #ccc; 
+  margin-left: -1px; 
+  position: relative;
+  left: 1px; 
+}
+.tab [type=radio] {
+  display: none;   
+}
+.content {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  background: white;
+  right: 0;
+  bottom: 0;
+  padding: 20px;
+  border: 1px solid #ccc; 
+}
+[type=radio]:checked ~ label {
+  background: white;
+  border-bottom: 1px solid white;
+  z-index: 2;
+}
+[type=radio]:checked ~ label ~ .content {
+  z-index: 1;
+}
+</style>
+</head>
+
+<body>
+<header></header>
+<article>
+
+<table><tr><td>
+
+<table width=600px>
+ <tr>
+  <td valign=middle align=center>
+   <a href="https://libwebsockets.org">
+    <img src="libwebsockets.org-logo.png"></a></td><td>
+	<section class="browser">Detected Browser: 
+	<div id=brow>...</div></section>
+  </td>
+ </tr>
+
+</table>
+</td></tr>
+<tr><td colspan=2 align=center>
+Click <a href="leaf.jpg" target="_blank">Here</a> to
+have the test server send a big picture by http.
+</td></tr>
+<tr><td colspan=2>
+<div class="tabs">
+
+   <div class="tab">
+       <input type="radio" id="tab-1" name="tab-group-1" checked>
+       <label for="tab-1">Dumb Increment Demo</label>
+       
+       <div class="content">
+        <div id="dumb" class="group2">
+         <table>
+          <tr>
+	   <td id=wsdi_statustd align=center class="wsstatus">
+	     <span id=wsdi_status>Websocket connection not initialized</span></td>
+           <td><span class="title">dumb increment-protocol</span></td>
+	   </tr>
+	   <tr>
+	   <td class="explain" colspan=2>
+The incrementing number is coming from the server at 20Hz and is individual for
+each connection to the server... try opening a second browser window.
+<br/><br/>
+The button sends a message over the websocket link to ask the server
+to zero just this connection's number.
+	   </td>
+	  </tr>
+	   <tr>
+	    <td align=center><div id=number style="font-size:120%;"> </div></td>
+	    <td align=center>
+	     <input type=button id=offset value="Reset counter"" >
+	     <input type=button id=junk value="Send junk" onclick="junk();" >
+	    </td>
+	    </tr>
+	 </table>
+	</div>
+       </div> 
+   </div>
+
+   <div class="tab">
+    <input type="radio" id="tab-2" name="tab-group-1">
+    <label for="tab-2">Mirror Demo</label>
+       
+    <div class="content">
+     <div id="mirror" class="group2">
+      <table>
+       <tr>
+	 <td colspan=1 id=wslm_statustd align=center class="wsstatus">
+	 <span id=wslm_status>Websocket connection not initialized</span>
+	</td>
+        <td>
+         <span class="title">lws-mirror-protocol</span>
+        </td>
+       </tr>
+       <tr>
+       <td colspan=2>
+         <div class="explain">
+Use the mouse to draw on the canvas below -- all other browser windows open
+on this page see your drawing in realtime and you can see any of theirs as
+well.
+<br/><br/>
+The lws-mirror protocol doesn't interpret what is being sent to it, it just
+re-sends it to every other websocket it has a connection with using that
+protocol, including the guy who sent the packet.
+<br/><br/>
+<b>libwebsockets-test-client</b> joins in by spamming circles on to this shared canvas when
+run.
+         </div>
+        </td>
+       </tr>
+       <tr>
+	<td colspan=2>Drawing color:
+	  <select id="color" onchange="update_color();">
+		<option value=#000000>Black</option>
+		<option value=#0000ff>Blue</option>
+		<option value=#20ff20>Green</option>
+		<option value=#802020>Dark Red</option>
+	  </select>
+       </tr>
+       <tr>
+	 <td colspan=2 width=500 height=320>
+		<div id="wslm_drawing" style="background:white"></div>
+	</td>
+       </tr>
+      </table>
+     </div>
+    </div> 
+   </div>
+    
+    <div class="tab">
+       <input type="radio" id="tab-3" name="tab-group-1">
+       <label for="tab-3">Close Testing</label>
+     
+       <div class="content">
+<div id="ot" class="group2">
+      <table>
+       <tr>
+        <td>
+
+		</td></tr>
+		<tr><td id=ot_statustd align=center class="wsstatus">
+		 <span id=ot_status>Websocket connection not initialized</span>
+		</td>
+		<td colspan=2><span class="title">Open and close testing</span></td>
+		</tr>
+		<tr>	
+<td class="explain" colspan=3 style="padding:3">
+To help with open and close testing, you can open and close a connection by hand using
+ the buttons.<br>
+ "<b>Close</b>" closes the connection from the browser with code 3000
+  and reason 'Bye!".<br>
+ "<b>Request Server Close</b>" sends a message asking the server to
+initiate the close, which it does with code 1001 and reason "Seeya".
+</td></tr>
+		<tr>
+		<td align=center><input type=button id=ot_open_btn value="Open" onclick="ot_open();" ></td>
+		<td align=center><input type=button id=ot_close_btn disabled value="Close" onclick="ot_close();" ></td>
+		<td align=center><input type=button id=ot_req_close_btn disabled value="Request Server Close" onclick="ot_req_close();" ></td>
+		</tr>
+
+</table>
+
+</div>
+       </div> 
+   </div>
+   
+    <div class="tab">
+       <input type="radio" id="tab-4" name="tab-group-1">
+       <label for="tab-4">Server info</label>
+
+       <div class="content">
+<div id="ot" class="group2">
+      <table>
+       <tr>
+	<td id=s_statustd align=center class="wsstatus">
+	 <div id=s_status>Websocket connection not initialized</div>
+	</td>
+	        <td colspan=1>
+<span class="title">Server Info</span>
+	</td>
+	</tr><tr>
+<td class="explain" colspan=2>
+This information is sent by the server over a ws[s] link and updated live
+whenever the information changes server-side.
+</td></tr>
+	<tr>
+	<td align=center colspan=2><div id=servinfo></div></td>
+	</tr>
+	<tr>
+	<td align=center colspan=2><div id=conninfo style="border : solid 2px #e0d040; padding : 4px; width : 500px; height : 350px; overflow : auto; "></</div></td>
+	</tr>
+</table>
+</div>
+       </div> 
+   </div>
+
+    <div class="tab">
+       <input type="radio" id="tab-5" name="tab-group-1">
+       <label for="tab-5">POST</label>
+
+       <div class="content">
+<div id="ot" class="group2">
+      <table>
+       <tr>
+	        <td colspan=1>
+<span class="title">POST Form testing</span>
+	</td>
+	</tr><tr>
+<td class="explain" colspan=2>
+This tests POST handling in lws.
+</td></tr>
+	<tr>
+	<td align=center colspan=2><div id=postinfo>
+	<form action="formtest" method="post">
+  Some text:<br>
+  <input type="text" name="Text" value="Give me some text"><br>
+  <input type="submit" value="Send the form">
+	</form>
+	</div></td>
+	</tr>
+</table>
+</div>
+       </div> 
+   </div>
+
+</div>
+</td></tr></table>
+
+Looking for support? <a href="https://libwebsockets.org">https://libwebsockets.org</a>, <a href="https://github.com/warmcat/libwebsockets">https://github.com/warmcat/libwebsockets</a></a><br/>
+Join the mailing list: <a href="https://libwebsockets.org/mailman/listinfo/libwebsockets">https://libwebsockets.org/mailman/listinfo/libwebsockets</a>
+
+</article>
+
+<script type="text/javascript" src="/client.js"></script>
+
+</body>
+</html>

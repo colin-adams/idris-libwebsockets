@@ -135,7 +135,7 @@ convert_options (KeyValue k v) o =
 
 ||| Directory where installed data files are found (hard-coded for now)
 local_resource_path : String
-local_resource_path = "/usr/local/share/libwebsockets-test-server"
+local_resource_path = "../test_client"
 
 ||| Path to find static / default resources
 |||
