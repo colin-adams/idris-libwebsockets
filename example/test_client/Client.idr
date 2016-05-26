@@ -34,7 +34,7 @@ get_appropriate_ws_url = do
 
 export
 reset : () -> JS_IO ()
-reset = jscall "function () {socket_di.send(\"reset\\n\")()}" (() -> JS_IO ())
+reset = jscall "function () { console.log(\"hello world\"); socket_di.send(\"reset\\n\")()}" (() -> JS_IO ())
 
 set_dumb_increment_callbacks : WebSocket -> JS_IO ()
 set_dumb_increment_callbacks sock = jscall """
@@ -66,10 +66,12 @@ element_by_id : String -> JS_IO JSRef
 element_by_id id = jscall "document.getElementById(%0)" (String -> JS_IO JSRef) id
 
 add_event_listener : JSRef -> String -> (() -> JS_IO ()) -> JS_IO ()
-add_event_listener target event action = 
-  jscall "%0.addEventListener(%1, %2)" (JSRef -> String -> (JsFn (() -> JS_IO ()
-  )) -> JS_IO ()) 
-    target event (MkJsFn action)
+add_event_listener target event action = do
+  if target == null then
+    jscall "function () {console.log(\"No target\");}()" (JS_IO ())
+  else
+    jscall "function () {console.log(\"Adding event listener for %1\"); %0.addEventListener(%1, function (){console.log(\"Event listener called for %1\");});}()" (JSRef -> String -> (JsFn (() -> JS_IO ()
+  )) -> JS_IO ()) target event (MkJsFn action)
 
 --namespace BrowserDetect
 
@@ -88,3 +90,6 @@ namespace Main
     set_dumb_increment_callbacks socket_di
     pure () 
  
+-- the following has no effect, even with the --interface option specified:
+exports : FFI_Export FFI_JS "exports.js" []
+exports = Fun san "san" $ End
