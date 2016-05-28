@@ -14,14 +14,11 @@ san s =
 document_url : JS_IO String
 document_url = foreign FFI_JS "document.URL" (JS_IO String)
 
-document_write : String -> JS_IO ()
-document_write s = foreign FFI_JS "document.write(%0)" (String -> JS_IO ()) s
-
 set_browser : String -> JS_IO ()
-set_browser s = foreign FFI_JS "document.getElementById('brow').textContent = %0" (String -> JS_IO ()) s
+set_browser s = foreign FFI_JS "function(){document.getElementById('brow').textContent = %0;}()" (String -> JS_IO ()) s
 
 set_number : String -> JS_IO ()
-set_number s = foreign FFI_JS "document.getElementById('number').textContent = %0" (String -> JS_IO ()) s
+set_number s = foreign FFI_JS "function(){document.getElementById('number').textContent = %0;}()" (String -> JS_IO ()) s
 
 get_appropriate_ws_url : JS_IO String
 get_appropriate_ws_url = do
@@ -32,9 +29,8 @@ get_appropriate_ws_url = do
   let (u3, _) = span (/= '/') u2
   pure $ pcol ++ u3 ++ "/xxx" -- last bit is for IE 10 workaround
 
-export
-reset : () -> JS_IO ()
-reset = jscall "function () { console.log(\"hello world\"); socket_di.send(\"reset\\n\")()}" (() -> JS_IO ())
+reset : WebSocket -> JS_IO ()
+reset sock = jscall "function(){ console.log(\"clicking\"); var socket_di; socket_di = %0; socket_di.send(\"reset\\n\"); }" (JSRef -> JS_IO ()) (unwrap_websocket sock)
 
 set_dumb_increment_callbacks : WebSocket -> JS_IO ()
 set_dumb_increment_callbacks sock = jscall """
@@ -65,13 +61,12 @@ set_dumb_increment_callbacks sock = jscall """
 element_by_id : String -> JS_IO JSRef
 element_by_id id = jscall "document.getElementById(%0)" (String -> JS_IO JSRef) id
 
-add_event_listener : JSRef -> String -> (() -> JS_IO ()) -> JS_IO ()
+add_event_listener : JSRef -> String -> (JS_IO ()) -> JS_IO ()
 add_event_listener target event action = do
   if target == null then
     jscall "function () {console.log(\"No target\");}()" (JS_IO ())
   else
-    jscall "function () {console.log(\"Adding event listener for %1\"); %0.addEventListener(%1, function (){console.log(\"Event listener called for %1\");});}()" (JSRef -> String -> (JsFn (() -> JS_IO ()
-  )) -> JS_IO ()) target event (MkJsFn action)
+    jscall "function () {%0.addEventListener(%1,%2);}()" (JSRef -> String -> (JsFn (JS_IO ())) -> JS_IO ()) target event (MkJsFn action)
 
 --namespace BrowserDetect
 
@@ -82,11 +77,12 @@ namespace Main
   main : JS_IO () 
   main = do
     -- TODO set_browser
-    offset <- element_by_id "offset"
-    _ <- add_event_listener offset "onclick" reset
     u <- get_appropriate_ws_url
     set_number u
+    offset <- element_by_id "offset"
     (Just socket_di) <- new_websocket_with_protocol u "dumb-increment-protocol"
+    jscall "console.log(Object.getPrototypeOf(%0));" (JSRef -> JS_IO ()) (unwrap_websocket socket_di)
+    add_event_listener offset "click" (reset socket_di)
     set_dumb_increment_callbacks socket_di
     pure () 
  
