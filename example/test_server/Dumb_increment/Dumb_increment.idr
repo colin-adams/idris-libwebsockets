@@ -197,5 +197,6 @@ init_dumb_increment_protocol context caps = unsafePerformIO $ do
 destroy_protocol_dumb_increment : (context : Ptr) -> Int
 destroy_protocol_dumb_increment context = OK
 
-
+exports: FFI_Export FFI_C "exports.h" []
+exports = Fun init_dumb_increment_protocol "init_protocol_dumb_increment_exported" $ Fun destroy_protocol_dumb_increment "destroy_protocol_dumb_increment_exported" $ End
 
