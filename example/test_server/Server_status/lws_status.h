@@ -30,6 +30,8 @@ void set_last (struct per_session_data__lws_status *pss, int last);
 
 void set_list (struct per_session_data__lws_status *pss);
 
+void increment_live_wsi (void);
+
 void set_ip (struct per_session_data__lws_status *pss, const char * name, const char * rip);
 
 void set_user_agent (struct per_session_data__lws_status *pss, const char * name);
