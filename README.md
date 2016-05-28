@@ -30,7 +30,9 @@ cd ../Server_status
 make
 cd ../Post
 make
-cd ..
+cd ../../test_client
+idris --build client.ipkg
+cd ../test_server
 sudo ./test_server
 
 Now point your web-browser to http://localhost:7681/
